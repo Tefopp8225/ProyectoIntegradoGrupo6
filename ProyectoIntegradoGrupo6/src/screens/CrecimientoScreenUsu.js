@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import io from 'socket.io-client';
 
-const SERVER_URL = 'http://192.168.1.29:3000';
+const SERVER_URL = 'http://192.168.1.26:3000';
 
 export default function CrecimientoScreenUsu({ navigation }) {
 
@@ -11,31 +11,40 @@ export default function CrecimientoScreenUsu({ navigation }) {
     const [sensorValue, setSensorValue] = useState(0);
 
     useEffect(() => {
-        const nuevaConexion = io(SERVER_URL);
+    const nuevaConexion = io(SERVER_URL, {
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
+    });
 
-        nuevaConexion.on('connect', () => {
-            setConectado(true);
-            console.log('Conectado al servidor');
-        });
+    nuevaConexion.on('connect', () => {
+        setConectado(true);
+        console.log('Conectado al servidor:', nuevaConexion.id);
+    });
 
-        nuevaConexion.on('disconnect', () => {
-            setConectado(false);
-            console.log('Desconectado del servidor');
-        });
+    nuevaConexion.on('disconnect', (motivo) => {
+        setConectado(false);
+        console.log('Desconectado del servidor:', motivo);
+    });
 
-        nuevaConexion.on('sensor_data', (data) => {
-            const altura = parseFloat(data.value);
+    nuevaConexion.on('connect_error', (error) => {
+        setConectado(false);
+        console.log('ERROR DE CONEXION:', error.message);
+    });
 
-            if (Number.isFinite(altura)) {
-                setSensorValue(altura);
-                console.log(`Altura de la planta: ${altura} cm`);
-            }
-        });
+    nuevaConexion.on('sensor_data', (data) => {
+        const altura = parseFloat(data.value);
 
-        return () => {
-            nuevaConexion.disconnect();
-        };
-    }, []);
+        if (Number.isFinite(altura)) {
+            setSensorValue(altura);
+            console.log(`Altura de la planta: ${altura} cm`);
+        }
+    });
+
+    return () => {
+        nuevaConexion.disconnect();
+    };
+}, []);
 
     return (
         <SafeAreaView style={styles.areaSegura}>
