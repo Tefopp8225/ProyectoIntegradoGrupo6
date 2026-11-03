@@ -5,7 +5,7 @@ import io from 'socket.io-client';
 //CAMBIAR IP
 const SERVER_URL = 'http://192.168.0.32:3000';
 
-export default function RiegoScreenUsu({ navigation }) {
+export default function RiegoScreen({ navigation }) {
     const [socket, setSocket] = useState(null);
     const [sensorValue, setSensorValue] = useState(0);   // humedad 1
     const [sensor2Value, setSensor2Value] = useState(0);  // humedad 2
@@ -109,10 +109,6 @@ export default function RiegoScreenUsu({ navigation }) {
             >
                 <View style={styles.card}>
                     <Text style={styles.titulo}>Jardin</Text>
-                    <View style={styles.imagen}>
-                        <Image source={require('../../assets/HomeImgJardin.jpg')}
-                            style={{ width: 300, height: 200, borderRadius: 8 }} />
-                    </View>
                     <Text style={styles.subtitle}>Controle el techo del invernadero y el riego</Text>
 
                     <Text style={styles.infoBoxTitle}>Maneras de cerrar el techo:</Text>
