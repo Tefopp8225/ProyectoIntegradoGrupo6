@@ -12,18 +12,13 @@ const cors = require('cors');
 // 2. CREAR SERVIDOR
 const app = express();
 const server = http.createServer(app);
-
-const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-    }
-});
+const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 
 // 3. CONFIGURAR PUERTO SERIAL
 const PUERTO_ARDUINO = 'COM5';
+
 let serialPort;
 
 try {
@@ -33,7 +28,7 @@ try {
         baudRate: 9600
     });
 
-    console.log('[OK] Intentando conectar con Arduino...');
+    console.log('[OK] Conectando al Arduino...');
 
 } catch (error) {
 
@@ -41,11 +36,38 @@ try {
 
 }
 
-// 4. ESTADO DE LOS SENSORES
+// 4. ESTADO DE LOS SENSORES Y HISTORIAL
 
 let sensorValue = 0;
-
 let alturaValue = 0;
+
+let historial = [];
+
+// FUNCION PARA GUARDAR REGISTROS
+
+function registrarRegistro(tipo, nombre, valor) {
+
+    const registro = {
+        id: Date.now(),
+        tipo: tipo,
+        nombre: nombre,
+        valor: valor,
+        fecha: new Date().toISOString()
+    };
+
+    historial.unshift(registro);
+
+    // Mantener solamente los últimos 100 registros
+    if (historial.length > 100) {
+        historial.pop();
+    }
+
+    // Enviar el nuevo registro a la aplicación
+    io.emit('historial_update', registro);
+
+    console.log('[HISTORIAL]', registro);
+
+}
 
 // 5. LEER DATOS DEL ARDUINO
 
@@ -65,7 +87,7 @@ if (serialPort) {
 
         if (line.startsWith('SENSOR:')) {
 
-            sensorValue = parseInt(line.split(':')[1]);
+            sensorValue = parseFloat(line.split(':')[1]);
 
             if (Number.isFinite(sensorValue)) {
 
@@ -73,11 +95,17 @@ if (serialPort) {
                     value: sensorValue
                 });
 
+                registrarRegistro(
+                    'Sensor',
+                    'Sensor de humedad',
+                    sensorValue
+                );
+
             }
 
         }
 
-        // SENSOR DE CRECIMIENTO
+        // SENSOR ULTRASONICO - CRECIMIENTO
 
         if (line.startsWith('ALTURA:')) {
 
@@ -91,9 +119,11 @@ if (serialPort) {
                     value: alturaValue
                 });
 
-            } else {
-
-                console.log('[ERROR] Valor de altura no válido');
+                registrarRegistro(
+                    'Sensor',
+                    'Sensor ultrasónico',
+                    alturaValue.toFixed(1) + ' cm'
+                );
 
             }
 
@@ -101,21 +131,19 @@ if (serialPort) {
 
     });
 
+    // ERROR DEL PUERTO SERIAL
+
     serialPort.on('error', (error) => {
 
         console.log('[ERROR] Error en el puerto:', error.message);
 
     });
 
+    // PUERTO ABIERTO
+
     serialPort.on('open', () => {
 
         console.log('[OK] Arduino conectado en:', PUERTO_ARDUINO);
-
-    });
-
-    serialPort.on('close', () => {
-
-        console.log('[WARN] Puerto Arduino cerrado');
 
     });
 
@@ -127,9 +155,17 @@ io.on('connection', (socket) => {
 
     console.log('[APP] App conectada:', socket.id);
 
+    // ENVIAR HISTORIAL AL CONECTARSE
+
+    socket.emit('historial_data', historial);
+
+    // ENVIAR ALTURA ACTUAL
+
     socket.emit('sensor_data', {
         value: alturaValue
     });
+
+    // CONTROL DE LED
 
     socket.on('command_led', (data) => {
 
@@ -152,14 +188,17 @@ io.on('connection', (socket) => {
         if (serialPort && serialPort.isOpen) {
 
             let comando;
+            let nombreActuador;
 
             if (data.led === 1) {
 
                 comando = 'LED1_' + data.action + '\n';
+                nombreActuador = 'LED 1';
 
             } else if (data.led === 2) {
 
                 comando = 'LED2_' + data.action + '\n';
+                nombreActuador = 'LED 2';
 
             } else {
 
@@ -168,9 +207,25 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            serialPort.write(comando);
+            serialPort.write(comando, (error) => {
 
-            console.log('[SEND] Enviando:', comando.trim());
+                if (error) {
+
+                    console.log('[ERROR] No se pudo enviar el comando:', error.message);
+
+                } else {
+
+                    console.log('[SEND] Enviando:', comando.trim());
+
+                    registrarRegistro(
+                        'Actuador',
+                        nombreActuador,
+                        data.action === 'ON' ? 'Encendido' : 'Apagado'
+                    );
+
+                }
+
+            });
 
         } else {
 
@@ -203,6 +258,7 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('========================================');
     console.log('Puerto:', PORT);
     console.log('Arduino:', PUERTO_ARDUINO);
+    console.log('Historial activado');
     console.log('========================================');
 
 });
