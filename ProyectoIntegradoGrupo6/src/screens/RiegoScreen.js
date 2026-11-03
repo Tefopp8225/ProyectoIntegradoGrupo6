@@ -11,7 +11,7 @@ export default function RiegoScreen({ navigation }) {
     const [sensor2Value, setSensor2Value] = useState(0);  // humedad 2
     const [conectado, setConectado] = useState(false);
     const [bombaEncendida, setBombaEncendida] = useState(false);
-
+//asdasdasd
     useEffect(() => {
         const nuevaConexion = io(SERVER_URL);
         setSocket(nuevaConexion);
