@@ -10,7 +10,6 @@ export default function RiegoScreen({ navigation }) {
     const [sensorValue, setSensorValue] = useState(0);   // humedad 1
     const [sensor2Value, setSensor2Value] = useState(0);  // humedad 2
     const [conectado, setConectado] = useState(false);
-    const [techoAbierto, setTechoAbierto] = useState(false);
     const [bombaEncendida, setBombaEncendida] = useState(false);
 //asdasdasd
     useEffect(() => {
@@ -37,12 +36,6 @@ export default function RiegoScreen({ navigation }) {
             console.log(`Sensor 2: ${data.value}`);
         });
 
-        nuevaConexion.on('techo_state', (data) => {
-            console.log('[APP] techo_state recibido:', data);
-            if (data && data.abierto !== undefined) {
-                setTechoAbierto(data.abierto);
-            }
-        });
 
         // Estado real de la bomba enviado por el Arduino
         nuevaConexion.on('bomba_state', (data) => {
@@ -107,81 +100,63 @@ export default function RiegoScreen({ navigation }) {
                 contentContainerStyle={styles.contenidoScroll}
                 showsVerticalScrollIndicator={true}
             >
+                <View style={styles.apartadosTitulo}>
+                    <Text style={styles.icono}>💧</Text>
+
+                    <View style={styles.apartado2Titulo}>
+                        <Text style={styles.titulo}>Riego</Text>
+                        <Text style={styles.subtitle}>Controle el sistema de riego y la humedad de las plantas.</Text>
+                    </View>
+                </View>
+
+
+
                 <View style={styles.card}>
-                    <Text style={styles.titulo}>Jardin</Text>
-                    <Text style={styles.subtitle}>Controle el techo del invernadero y el riego</Text>
-
-                    <Text style={styles.infoBoxTitle}>Maneras de cerrar el techo:</Text>
-                    <Text style={styles.infoBoxText}>
-                        ▹ Si el sensor de humedad detecta un valor alto (lluvia) cerrará automáticamente el techo.{'\n'}
-                        ▹ Puede hacerlo manualmente utilizando los botones.
-                    </Text>
-
-                    {/* LECTORES DE HUMEDAD */}
-                    <View style={styles.ledSection}>
-                        <Text style={styles.ledTitulo}>Nivel de humedad</Text>
+                    <View style={styles.sensoresSection}>
+                        <Text style={styles.SensoresTitulo}>Nivel de humedad</Text>
 
                         <View style={styles.sensoresRow}>
                             <View style={styles.sensorBox}>
-                                <Text style={styles.sensorLabel}>Sensor 1</Text>
+                                <Text style={styles.iconoSensor}>🪴</Text>
                                 <Text style={styles.sensorValor}>{sensorValue}</Text>
+                                <Text style={styles.sensorLabel}>Fila 1</Text>
                             </View>
                             <View style={styles.sensorBox}>
-                                <Text style={styles.sensorLabel}>Sensor 2</Text>
+                                <Text style={styles.iconoSensor}>🪴</Text>
                                 <Text style={styles.sensorValor}>{sensor2Value}</Text>
+                                <Text style={styles.sensorLabel}>Fila 2</Text>
                             </View>
                         </View>
+                    </View>
+                </View>
 
-                        <Text style={[styles.unidad, { color: recomendacionColor, fontWeight: 'bold' }]}>
-                            Recomendación:{'\n'}{recomendacionTexto}
+
+
+                <View style={styles.card}>
+                    <View style={styles.sensoresSection}>
+                        <Text style={styles.SensoresTitulo}>Sistema de Riego Automático</Text>
+
+                        <Text style={styles.descripcionInfo}>El sistema será activado en este horario:</Text>
+
+                        <View style={styles.apartadoProgramado}>
+                            <Text style={styles.iconoProgramado}>📅</Text>
+                        </View>
+
+                        
+                    </View>
+                </View>
+
+
+
+                <View style={styles.card}>
+                    <View style={styles.sensoresSection}>
+                        <Text style={styles.SensoresTitulo}>Sistema de Riego Manual</Text>
+
+                        <Text style={styles.descripcionInfo}>Verifique el estado del sistema (encendido / apagado) y utilice los botones para controlarlo.</Text>
+
+                        <Text style={[styles.estado, bombaEncendida ? styles.conectado : styles.desconectado]}>
+                            {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
                         </Text>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    {/* TECHO */}
-                    <View style={styles.ledSection}>
-                        <Text style={styles.ledTitulo}>Techo</Text>
-
-                        <View style={styles.estadoLuz}>
-                            <Text style={styles.textoEstado}>Estado:</Text>
-                            <Text style={[styles.estado, techoAbierto ? styles.conectado : styles.desconectado]}>
-                                {techoAbierto ? 'ABIERTO' : 'CERRADO'}
-                            </Text>
-                        </View>
-
-                        <View style={styles.botones}>
-                            <TouchableOpacity
-                                style={[styles.boton, styles.botonEncender]}
-                                onPress={abrirTecho}
-                                disabled={!conectado}
-                            >
-                                <Text style={styles.textoBoton}>ABRIR</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.boton, styles.botonApagar]}
-                                onPress={cerrarTecho}
-                                disabled={!conectado}
-                            >
-                                <Text style={styles.textoBoton}>CERRAR</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    {/* BOMBA DE RIEGO */}
-                    <View style={styles.ledSection}>
-                        <Text style={styles.ledTitulo}>Bomba de riego</Text>
-
-                        <View style={styles.estadoLuz}>
-                            <Text style={styles.textoEstado}>Estado:</Text>
-                            <Text style={[styles.estado, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                                {bombaEncendida ? 'ENCENDIDA' : 'APAGADA'}
-                            </Text>
-                        </View>
-
                         <View style={styles.botones}>
                             <TouchableOpacity
                                 style={[styles.boton, styles.botonEncender]}
@@ -200,7 +175,6 @@ export default function RiegoScreen({ navigation }) {
                             </TouchableOpacity>
                         </View>
                     </View>
-
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -208,17 +182,45 @@ export default function RiegoScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    areaSegura: { 
-        flex: 1, 
-        backgroundColor: '#c7c6d4' 
+    areaSegura: {
+        flex: 1,
+        backgroundColor: '#A3CEF1'
     },
-    scrollView: { 
-        flex: 1 
+    scrollView: {
+        flex: 1
     },
-    contenidoScroll: { 
-        flexGrow: 1, 
-        padding: 20, 
-        paddingBottom: 30 
+    contenidoScroll: {
+        flexGrow: 1,
+        padding: 20,
+        paddingBottom: 30
+    },
+    apartadosTitulo: {
+        flexDirection: 'row',
+        backgroundColor: '#274c77',
+        borderRadius: 15,
+        padding: 18,
+        marginBottom: 15,
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    icono: {
+        fontSize: 40,
+        marginRight: 15,
+    },
+    apartado2Titulo: {
+        flex: 1,
+    },
+    titulo: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        marginBottom: 5,
+        color: '#A3CEF1'
+    },
+    subtitle: {
+        fontSize: 14,
+        color: 'white',
+        lineHeight: 20,
+        paddingRight: 70
     },
     card: {
         backgroundColor: 'white',
@@ -229,19 +231,41 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 5,
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
     },
-    titulo: { 
-        fontSize: 28, 
-        fontWeight: 'bold', 
-        textAlign: 'center', 
-        marginBottom: 15, 
-        color: '#60463B' 
+    sensorValor: {
+        fontSize: 48,
+        fontWeight: 'bold',
+        color: '#274c77'
     },
-    subtitle: { 
-        fontSize: 18, 
-        textAlign: 'center', 
-        color: '#666', 
-        marginBottom: 20 
+    sensorBox: {
+        backgroundColor: '#A3CEF1',
+        borderRadius: 15,
+        paddingVertical: 20,
+        paddingHorizontal: 30,
+        alignItems: 'center',
+        minWidth: 130,
+    },
+    SensoresTitulo: {
+        fontSize: 23,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 15,
+        color: '#274c77',
+    },
+    iconoSensor: {
+        fontSize: 35,
+        marginBottom: 5,
+    },
+    sensorLabel: {
+        fontSize: 20,
+        color: '#274c77',
+        marginTop: 8,
+    },
+    sensoresSection: {
+        marginVertical: 10
     },
     estado: {
         textAlign: 'center',
@@ -251,116 +275,54 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         marginTop: 10,
         fontWeight: '500',
-        marginLeft: 15,
-        width: '70%'
+        width: '100%'
     },
-    conectado: { 
-        backgroundColor: '#e8f5e9', 
-        color: '#6A994E' 
+    botonEncender: {
+        backgroundColor: '#A7C957'
     },
-    desconectado: { 
-        backgroundColor: '#ffebee', 
-        color: '#E5383B' 
+    botonApagar: {
+        backgroundColor: '#e9494bee'
     },
-    ledSection: { 
-        marginVertical: 10 
+    descripcionInfo: {
+        fontSize: 14,
+        color: '#274c77',
+        lineHeight: 22,
+        textAlign: 'justify',
+        marginBottom: 15,
     },
-    ledTitulo: { 
-        fontSize: 20, 
-        fontWeight: '600', 
-        marginBottom: 7, 
-        textAlign: 'center', 
-        color: '#60463B' },
-    botones: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-around', 
-        marginTop: 5 },
-    boton: { 
-        paddingVertical: 12, 
-        paddingHorizontal: 25, 
-        borderRadius: 10, 
-        minWidth: 120, 
-        alignItems: 'center' },
-    botonEncender: { 
-        backgroundColor: '#A7C957' },
-    botonApagar: { 
-        backgroundColor: '#e9494bee' },
-    textoBoton: { 
-        color: 'white', 
-        fontSize: 14, 
-        fontWeight: 'bold' },
-    divider: { 
-        height: 3, 
-        backgroundColor: '#8B8C89', 
-        marginVertical: 15 },
-    imagen: { 
-        paddingLeft: 3, 
-        paddingBottom: 15 },
-    estadoLuz: { 
-        flexDirection: 'row', 
-        marginBottom: 10 },
-    textoEstado: { 
-        fontSize: 20, 
-        fontWeight: 'bold', 
-        marginTop: 16, 
-        color: '#6C6F7D' },
-    infoBoxTitle: { 
-        fontSize: 16, 
-        fontWeight: 'bold', 
-        marginBottom: 10, 
-        color: '#333' },
-    infoBoxText: { 
-        fontSize: 14, 
-        color: '#666', 
-        lineHeight: 24 },
-    valorContainer: { 
-        alignItems: 'center', 
-        backgroundColor: '#f8f9fa', 
-        borderRadius: 15, 
-        padding: 30 },
-    valor: { 
-        fontSize: 80, 
-        fontWeight: 'bold', 
-        color: '#2196F3' },
-    unidad: { 
-        fontSize: 18, 
-        color: '#999', 
-        marginTop: 5, 
-        textAlign: 'center' },
-    // nuevos estilos para los dos sensores
-    sensoresRow: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-around', 
-        marginBottom: 10 },
-    sensorBox: {
-        backgroundColor: '#f8f9fa',
-        borderRadius: 15,
-        paddingVertical: 20,
-        paddingHorizontal: 30,
-        alignItems: 'center',
-        minWidth: 130,
+    conectado: {
+        backgroundColor: '#e8f5e9',
+        color: '#6A994E'
     },
-    sensorLabel: { 
-        fontSize: 14, 
-        color: '#666', 
-        marginBottom: 5 },
-    sensorValor: { 
-        fontSize: 48, 
-        fontWeight: 'bold', 
-        color: '#2196F3' },
-});
+    desconectado: {
+        backgroundColor: '#ffebee',
+        color: '#E5383B'
+    },
+    botones: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginTop: 5
+    },
+    boton: {
+        paddingVertical: 12,
+        paddingHorizontal: 25,
+        borderRadius: 10,
+        minWidth: 120,
+        alignItems: 'center'
+    },
+    textoBoton: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: 'bold'
+    },
+    sensoresRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginBottom: 10
+    },
 
-/*
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#f5f5f5',
+    iconoProgramado: {
+        fontSize: 35,
+        marginRight: 15,
     },
-    title: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333',
-    }
-});*/
+});
