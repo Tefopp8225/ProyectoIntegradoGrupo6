@@ -1,3 +1,4 @@
+
 //Servidor de prueba
 
 // 1. IMPORTAR LIBRERIAS
@@ -11,33 +12,39 @@ const cors = require('cors');
 // 2. CREAR SERVIDOR
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+    }
+});
 
 app.use(cors());
 
 // 3. CONFIGURAR PUERTO SERIAL
-const PUERTO_ARDUINO = 'COM15';
-
-// Intentar conectar con Arduino
+const PUERTO_ARDUINO = 'COM5';
 let serialPort;
 
 try {
+
     serialPort = new SerialPort({
         path: PUERTO_ARDUINO,
         baudRate: 9600
     });
 
-    console.log('[OK] Conectando al Arduino...');
+    console.log('[OK] Intentando conectar con Arduino...');
 
 } catch (error) {
+
     console.log('[ERROR] Error al conectar:', error.message);
+
 }
 
 // 4. ESTADO DE LOS SENSORES
 
 let sensorValue = 0;
 
-// NUEVO: Variable para guardar la altura de la planta
 let alturaValue = 0;
 
 // 5. LEER DATOS DEL ARDUINO
@@ -50,36 +57,36 @@ if (serialPort) {
 
     parser.on('data', (line) => {
 
+        line = line.trim();
+
         console.log('[ARDUINO]', line);
 
-        // ==========================================
-        // FUNCION ORIGINAL: LECTURA DEL SENSOR
-        // ==========================================
+        // SENSOR DE HUMEDAD
 
         if (line.startsWith('SENSOR:')) {
 
-            sensorValue = parseInt(line.split(':')[1]) || 0;
+            sensorValue = parseInt(line.split(':')[1]);
 
-            io.emit('sensor_data', { value: sensorValue });
+            if (Number.isFinite(sensorValue)) {
+
+                io.emit('sensor_data', {
+                    value: sensorValue
+                });
+
+            }
+
         }
 
-
-        // ==========================================
-        // NUEVA FUNCION: SENSOR ULTRASONICO
-        // PANTALLA: CrecimientoScreenUsu.js
-        // ==========================================
+        // SENSOR DE CRECIMIENTO
 
         if (line.startsWith('ALTURA:')) {
 
-            // Obtener el valor enviado por Arduino
             alturaValue = parseFloat(line.split(':')[1]);
 
-            // Comprobar que sea un número válido
             if (Number.isFinite(alturaValue)) {
 
-                console.log('[CRECIMIENTO] Altura de la planta:', alturaValue, 'cm');
+                console.log('[CRECIMIENTO] Altura:', alturaValue, 'cm');
 
-                // Enviar la altura a CrecimientoScreenUsu
                 io.emit('sensor_data', {
                     value: alturaValue
                 });
@@ -89,49 +96,40 @@ if (serialPort) {
                 console.log('[ERROR] Valor de altura no válido');
 
             }
+
         }
 
     });
 
-
-    // Error en el puerto serial
     serialPort.on('error', (error) => {
 
         console.log('[ERROR] Error en el puerto:', error.message);
 
     });
 
-
-    // Puerto abierto correctamente
     serialPort.on('open', () => {
 
         console.log('[OK] Arduino conectado en:', PUERTO_ARDUINO);
 
     });
 
-}
+    serialPort.on('close', () => {
 
+        console.log('[WARN] Puerto Arduino cerrado');
+
+    });
+
+}
 
 // 6. MANEJAR CONEXIONES DE LA APP
 
 io.on('connection', (socket) => {
 
-    console.log('[APP] App conectada');
-
-
-    // ==========================================
-    // NUEVA FUNCION: ENVIAR ALTURA A LA PANTALLA
-    // CrecimientoScreenUsu.js
-    // ==========================================
+    console.log('[APP] App conectada:', socket.id);
 
     socket.emit('sensor_data', {
         value: alturaValue
     });
-
-
-    // ==========================================
-    // FUNCION ORIGINAL: CONTROL DE LED
-    // ==========================================
 
     socket.on('command_led', (data) => {
 
@@ -186,15 +184,13 @@ io.on('connection', (socket) => {
 
     });
 
-
     socket.on('disconnect', () => {
 
-        console.log('[APP] App desconectada');
+        console.log('[APP] App desconectada:', socket.id);
 
     });
 
 });
-
 
 // 7. INICIAR SERVIDOR
 
@@ -210,7 +206,6 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('========================================');
 
 });
-
 
 // 8. MANEJAR ERRORES GENERALES
 
