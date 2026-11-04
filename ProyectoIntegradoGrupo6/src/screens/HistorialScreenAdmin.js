@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import io from 'socket.io-client';
 
-const SERVER_URL = 'http://192.168.1.29:3000';
+const SERVER_URL = 'http://192.168.1.26:3000';
 
 export default function HistorialScreenAdmin({ navigation }) {
 
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     registro: {
         backgroundColor: '#F3E9DC',
         borderRadius: 12,
-        padding: 15,
+        paddingHorizontal: 15,
         marginTop: 12,
         borderWidth: 1,
         borderColor: '#E1D4C6',
@@ -382,7 +382,7 @@ const styles = StyleSheet.create({
     },
 
     iconoRegistro: {
-        fontSize: 30,
+        fontSize: 15,
         marginRight: 12,
     },
 
@@ -391,40 +391,42 @@ const styles = StyleSheet.create({
     },
 
     nombreRegistro: {
-        fontSize: 16,
+        fontSize: 13,
         fontWeight: 'bold',
         color: '#4A3328',
+        marginTop: 5,
     },
 
     tipoRegistro: {
-        fontSize: 13,
+        fontSize: 11,
         color: '#8B6F47',
-        marginTop: 3,
+        marginTop: 5,
     },
 
     valorRegistroContainer: {
-        marginTop: 15,
+        marginTop: 10,
         backgroundColor: 'white',
-        padding: 12,
+        padding: 4,
         borderRadius: 10,
     },
 
     etiquetaRegistro: {
-        fontSize: 12,
+        fontSize: 10,
         color: '#6B5142',
     },
 
     valorRegistro: {
-        fontSize: 19,
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#8B6F47',
         marginTop: 4,
     },
 
     fechaRegistro: {
-        fontSize: 12,
+        fontSize: 10,
         color: '#6B5142',
-        marginTop: 12,
+        marginTop: 6,
+        marginBottom: 6,
     },
 
     sinRegistros: {
