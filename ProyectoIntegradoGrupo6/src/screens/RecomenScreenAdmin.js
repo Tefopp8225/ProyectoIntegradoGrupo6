@@ -1,15 +1,5 @@
 import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    TextInput,
-    StyleSheet,
-    ActivityIndicator,
-    ScrollView,
-    TouchableOpacity,
-    StatusBar
-} from 'react-native';
-
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, StatusBar} from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const SERVER_URL = 'https://invernadero-chatbot.blancaprz413.workers.dev';
@@ -87,8 +77,8 @@ export default function RecomenScreenAdmin() {
     return (
 
         <View style={styles.container}>
-            {/* Barra de estado con estilo claro y fondo café oscuro */}
-            <StatusBar barStyle="light-content" backgroundColor="#382218" />
+            {/* Barra de estado con el nuevo tono de café */}
+            <StatusBar barStyle="light-content" backgroundColor="#693c12" />
 
             <ScrollView
                 style={styles.scroll}
@@ -213,7 +203,7 @@ export default function RecomenScreenAdmin() {
 
                     </View>
 
-                    {/* PREGUNTAS SUGERIDAS */}
+                    {/* PREGUNTAS SUGERIDAS (Diseño 2x2 optimizado) */}
 
                     <View style={styles.seccionPreguntas}>
 
@@ -250,20 +240,14 @@ export default function RecomenScreenAdmin() {
                                     <View style={styles.iconoPregunta}>
                                         <FontAwesome
                                             name={pregunta.icono}
-                                            size={15}
+                                            size={14}
                                             color="#2E7D32"
                                         />
                                     </View>
 
-                                    <Text style={styles.textoPregunta}>
+                                    <Text style={styles.textoPregunta} numberOfLines={2}>
                                         {pregunta.texto}
                                     </Text>
-
-                                    <FontAwesome
-                                        name="angle-right"
-                                        size={17}
-                                        color="#2E7D32"
-                                    />
 
                                 </TouchableOpacity>
 
@@ -297,7 +281,7 @@ export default function RecomenScreenAdmin() {
                             <TextInput
                                 style={styles.input}
                                 placeholder="¿En qué puedo ayudarte hoy?"
-                                placeholderTextColor="#8C6239"
+                                placeholderTextColor="#99704F"
                                 value={consulta}
                                 onChangeText={setConsulta}
                                 multiline={true}
@@ -340,65 +324,36 @@ export default function RecomenScreenAdmin() {
                     </View>
 
                 </View>
-
-                {/* PIE DE PÁGINA */}
-
-                <View style={styles.piePagina}>
-
-                    <View style={styles.lineaPie} />
-
-                    <FontAwesome
-                        name="leaf"
-                        size={14}
-                        color="#2E7D32"
-                    />
-
-                    <Text style={styles.textoPie}>
-                        ASISTENTE INTELIGENTE DEL INVERNADERO
-                    </Text>
-
-                </View>
-
             </ScrollView>
-
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-
-    // FONDO GENERAL
-
     container: {
         flex: 1,
         backgroundColor: '#E8E1D9',
     },
-
     scroll: {
         flex: 1,
     },
-
     contenido: {
-        paddingBottom: 20,
+        paddingBottom: 25,
         width: '100%',
         maxWidth: 650,
         alignSelf: 'center',
     },
-
-    // ENCABEZADO 
-
     encabezado: {
-        backgroundColor: '#382218',
+        backgroundColor: '#58391b', // Nuevo tono de café
         paddingHorizontal: 20,
-        paddingTop: 28,
-        paddingBottom: 20,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24,
+        paddingBottom: 10,
+        paddingTop: 15,
+        borderRadius: 10,
         elevation: 4,
-        shadowColor: '#382218',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 5,
+        shadowColor: '#693c12',
+        margin: 15,
+        marginTop: 20,
+        
     },
 
     filaEncabezado: {
@@ -457,11 +412,11 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    // CUERPO PRINCIPAL (Reduce espacios excesivos)
+    // CUERPO PRINCIPAL
 
     cuerpoPrincipal: {
         paddingHorizontal: 16,
-        marginTop: 14,
+        marginTop: 16,
         gap: 16,
     },
 
@@ -474,7 +429,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#D4E2D4',
         elevation: 2,
-        shadowColor: '#382218',
+        shadowColor: '#693c12',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.06,
         shadowRadius: 4,
@@ -496,7 +451,7 @@ const styles = StyleSheet.create({
     },
 
     tituloRespuesta: {
-        color: '#382218',
+        color: '#693c12',
         fontSize: 13,
         fontWeight: 'bold',
     },
@@ -515,13 +470,13 @@ const styles = StyleSheet.create({
     },
 
     contenedorTexto: {
-        maxHeight: 200,
-        minHeight: 100,
+        maxHeight: 180,
+        minHeight: 90,
     },
 
     textoRespuesta: {
         fontSize: 13.5,
-        color: '#382218',
+        color: '#693c12',
         lineHeight: 21,
     },
 
@@ -550,7 +505,7 @@ const styles = StyleSheet.create({
         color: '#5C765D',
     },
 
-    // PREGUNTAS SUGERIDAS
+    // PREGUNTAS SUGERIDAS (Cuadrícula 2x2)
 
     seccionPreguntas: {
         gap: 6,
@@ -565,7 +520,7 @@ const styles = StyleSheet.create({
     tituloSeccion: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#382218',
+        color: '#693c12',
     },
 
     descripcionSeccion: {
@@ -575,25 +530,30 @@ const styles = StyleSheet.create({
     },
 
     contenedorPreguntas: {
-        gap: 8,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 10,
     },
 
     botonPregunta: {
+        width: '48%', // Distribuye en dos columnas exactas
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFCF8',
-        padding: 11,
+        padding: 10,
         borderRadius: 12,
         borderWidth: 1,
         borderColor: '#D4E2D4',
-        gap: 10,
+        gap: 8,
+        minHeight: 58,
         elevation: 1,
     },
 
     iconoPregunta: {
-        width: 32,
-        height: 32,
-        borderRadius: 9,
+        width: 28,
+        height: 28,
+        borderRadius: 8,
         backgroundColor: '#E8F5E9',
         justifyContent: 'center',
         alignItems: 'center',
@@ -601,10 +561,10 @@ const styles = StyleSheet.create({
 
     textoPregunta: {
         flex: 1,
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '600',
-        color: '#382218',
-        lineHeight: 17,
+        color: '#693c12',
+        lineHeight: 15,
     },
 
     // ÁREA DE CONSULTA
@@ -622,7 +582,7 @@ const styles = StyleSheet.create({
         borderColor: '#2E7D32',
         paddingHorizontal: 12,
         paddingVertical: 10,
-        minHeight: 90,
+        minHeight: 85,
         elevation: 1.5,
     },
 
@@ -634,8 +594,8 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         fontSize: 13.5,
-        color: '#382218',
-        minHeight: 65,
+        color: '#693c12',
+        minHeight: 60,
         padding: 0,
         lineHeight: 20,
     },
@@ -644,14 +604,14 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#382218',
+        backgroundColor: '#693c12', // Nuevo tono de café
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderRadius: 12,
         marginTop: 8,
         gap: 10,
         elevation: 2,
-        shadowColor: '#382218',
+        shadowColor: '#693c12',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.15,
         shadowRadius: 4,
@@ -665,30 +625,6 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 13.5,
         fontWeight: 'bold',
-    },
-
-    // PIE DE PÁGINA
-
-    piePagina: {
-        alignItems: 'center',
-        marginHorizontal: 20,
-        marginTop: 20,
-        gap: 6,
-    },
-
-    lineaPie: {
-        height: 1,
-        backgroundColor: '#D4E2D4',
-        width: '100%',
-        marginBottom: 4,
-    },
-
-    textoPie: {
-        fontSize: 8.5,
-        fontWeight: 'bold',
-        color: '#2E7D32',
-        letterSpacing: 1.2,
-        textAlign: 'center',
     },
 
 });

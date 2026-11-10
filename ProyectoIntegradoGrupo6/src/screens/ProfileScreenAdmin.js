@@ -389,17 +389,6 @@ export default function ProfileScreen({ navigation }) {
                         <Text style={styles.subtitulo}>
                             Administración de cuenta
                         </Text>
-
-                        <View style={styles.separadorDecorativo} />
-
-                        <Text style={styles.bienvenida}>
-                            ¡Bienvenido!
-                        </Text>
-
-                        <Text style={styles.mensajeBienvenida}>
-                            Nos alegra tenerte aquí
-                        </Text>
-
                     </View>
 
                     {/* INFORMACIÓN DEL USUARIO */}
@@ -646,7 +635,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
 
         elevation: 8,
-        shadowColor: '#382218',
+        shadowColor: '#58391b',
         shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.15,
         shadowRadius: 12,
@@ -655,10 +644,10 @@ const styles = StyleSheet.create({
     // ENCABEZADO (Café Principal Vivo)
 
     encabezado: {
-        backgroundColor: '#382218',
+        backgroundColor: '#58391b',
         width: '100%',
         alignItems: 'center',
-        paddingTop: 42,
+        paddingTop: 32,
         paddingBottom: 32,
         borderBottomLeftRadius: 30,
         borderBottomRightRadius: 30,
@@ -668,9 +657,9 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: '#5C3A21',
+        backgroundColor: '#945c35',
         borderWidth: 3,
-        borderColor: '#A4774F',
+        borderColor: '#e0b188',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 17,
@@ -689,30 +678,6 @@ const styles = StyleSheet.create({
         marginTop: 5,
         letterSpacing: 1,
     },
-
-    separadorDecorativo: {
-        width: 45,
-        height: 3,
-        backgroundColor: '#C69B70',
-        borderRadius: 5,
-        marginTop: 19,
-        marginBottom: 18,
-    },
-
-    bienvenida: {
-        fontSize: 23,
-        fontWeight: 'bold',
-        color: '#FFF9F2',
-    },
-
-    mensajeBienvenida: {
-        fontSize: 13,
-        color: '#E8D8C9',
-        marginTop: 5,
-    },
-
-    // SECCIONES
-
     seccionUsuario: {
         width: '100%',
         paddingHorizontal: 22,
@@ -934,7 +899,7 @@ const styles = StyleSheet.create({
 
     // BOTÓN PRINCIPAL (Café vibrante y elegante)
     boton: {
-        backgroundColor: '#382218',
+        backgroundColor: '#58391b',
         width: '100%',
         paddingVertical: 16,
         paddingHorizontal: 20,
