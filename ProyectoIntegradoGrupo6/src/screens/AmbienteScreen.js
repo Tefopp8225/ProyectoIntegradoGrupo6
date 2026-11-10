@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#c8e1c6',
+        marginTop:15,
     },
     icono: {
         marginRight: 15,
