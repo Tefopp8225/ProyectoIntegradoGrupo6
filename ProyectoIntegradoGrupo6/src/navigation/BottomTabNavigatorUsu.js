@@ -29,6 +29,7 @@ export default function BottomTabNavigatorUsu() {
                 name="Inicio"
                 component={HomeScreenUsu}
                 options={{
+                    headerShown: false,
                     tabBarIcon: () => (
                         <AntDesign name="home" size={28} color="black" />
                     )    
@@ -41,6 +42,7 @@ export default function BottomTabNavigatorUsu() {
                 name="Crecimiento"
                 component={CrecimientoScreenUsu}
                 options={{
+                    headerShown: false,
                     tabBarIcon: () => (
                         <MaterialIcons name="trending-up" size={32} color="black" />
                     ) 
@@ -51,6 +53,7 @@ export default function BottomTabNavigatorUsu() {
                 name="Ambiente"
                 component={AmbienteScreen}
                 options={{
+                    headerShown: false,
                     tabBarIcon: () => (
                         <MaterialIcons name="eco" size={32} color="black" />
                     ) 
@@ -61,6 +64,7 @@ export default function BottomTabNavigatorUsu() {
                 name="Riego"
                 component={RiegoScreen}
                 options={{
+                    headerShown: false,
                     tabBarIcon: () => (
                         <MaterialIcons name="water-drop" size={32} color="black" />
                     ) 
@@ -73,6 +77,7 @@ export default function BottomTabNavigatorUsu() {
                 name="Perfil"
                 component={ProfileScreenUsu}
                 options={{
+                    headerShown: false,
                     tabBarIcon: () => (
                         <Feather name="user" size={30} color="black" />
                     )

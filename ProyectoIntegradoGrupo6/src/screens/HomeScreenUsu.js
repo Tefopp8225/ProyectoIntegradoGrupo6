@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ScrollView, StatusBar } from 'react-native';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, query, where, onSnapshot } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { firebaseConfig } from '../firebase/FirebaseConfig';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
@@ -93,105 +94,305 @@ export default function UsuarioHome({ navigation }) {
     };
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            {/* Parte de Arriba - Datos Personales (Intacta) */}
-            <View style={styles.card}>
-                <Text style={styles.title}>Bienvenido</Text>
+        <View style={styles.container}>
+            {/* Barra de estado con el tono café */}
+            <StatusBar barStyle="light-content" backgroundColor="#58391b" />
 
-                <Text style={styles.label}>Nombre:</Text>
-                <TextInput style={styles.input} value={nombre} onChangeText={setNombre} placeholder="Tu nombre" />
-
-                <Text style={styles.label}>Apellido:</Text>
-                <TextInput style={styles.input} value={apellido} onChangeText={setApellido} placeholder="Tu apellido" />
-
-                <Text style={styles.label}>Edad:</Text>
-                <TextInput style={styles.input} value={edad} onChangeText={setEdad} keyboardType="numeric" placeholder="Tu edad" />
-
-                <TouchableOpacity style={styles.boton} onPress={guardarDatos} disabled={cargando}>
-                    <Text style={styles.textoBoton}>{cargando ? "Guardando..." : "Guardar Datos"}</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity onPress={() => navigation.navigate('Perfil')} style={{marginTop: 10}}>
-                    <Text style={{color: '#8D6E63', fontWeight: 'bold'}}>Ver mi Perfil y Asistencia</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Apartado de Reportes con nuevo diseño y más opciones */}
-            <View style={styles.card}>
-                <Text style={styles.title}>Reportes al Administrador</Text>
-                <Text style={styles.subtitle}>Selecciona el problema detectado en el invernadero:</Text>
-
-                {/* Nuevas opciones de problemas */}
-                <View style={styles.filaBotones}>
-                    {[
-                        "Falta de material", 
-                        "Problema en plantas", 
-                        "Posible plaga", 
-                        "Exceso de humedad", 
-                        "Temperatura alta", 
-                        "Falta de riego"
-                    ].map((op) => (
-                        <TouchableOpacity 
-                            key={op} 
-                            style={[styles.opcionBtn, tipo === op && styles.opcionSeleccionada]} 
-                            onPress={() => setTipo(op)}
-                        >
-                            <Text style={[styles.textoOp, tipo === op && {color: '#fff', fontWeight: 'bold'}]}>{op}</Text>
-                        </TouchableOpacity>
-                    ))}
+            <ScrollView contentContainerStyle={styles.contenido} showsVerticalScrollIndicator={false}>
+                
+                {/* ENCABEZADO SIN ICONO DE HOJA */}
+                <View style={styles.encabezado}>
+                    <Text style={styles.tituloHeader}>Marcar reporte y asistencia</Text>
+                    <Text style={styles.subtituloHeader}>Gestión y control del invernadero</Text>
                 </View>
 
-                <TextInput 
-                    style={[styles.input, {height: 70, textAlignVertical: 'top'}]} 
-                    value={descripcion} 
-                    onChangeText={setDescripcion} 
-                    placeholder="Descripción breve de lo sucedido..." 
-                    multiline={true}
-                />
+                {/* TARJETA 1: DATOS PERSONALES */}
+                <View style={styles.card}>
+                    <View style={styles.cardHeaderTitle}>
+                        <FontAwesome name="user" size={16} color="#58391b" />
+                        <Text style={styles.title}>Información Personal</Text>
+                    </View>
+                    <View style={styles.lineaDecorativa} />
 
-                <TouchableOpacity style={styles.boton} onPress={enviarReporte}>
-                    <Text style={styles.textoBoton}>Enviar Reporte</Text>
-                </TouchableOpacity>
+                    <Text style={styles.label}>Nombre:</Text>
+                    <TextInput style={styles.input} value={nombre} onChangeText={setNombre} placeholder="Tu nombre" placeholderTextColor="#8C7355" />
 
-                <Text style={[styles.label, {marginTop: 25}]}>Historial de Mis Reportes:</Text>
-                
-                {misReportes.length === 0 ? (
-                    <Text style={styles.gris}>Aún no has enviado reportes.</Text>
-                ) : (
-                    misReportes.map(r => (
-                        <View key={r.id} style={styles.itemReporte}>
-                            <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
-                                <Text style={styles.textoNegrita}>{r.tipo}</Text>
-                                <Text style={{color: r.estado === 'Visto' ? '#2e7d32' : '#d97706', fontWeight: 'bold'}}>
-                                    {r.estado}
-                                </Text>
+                    <Text style={styles.label}>Apellido:</Text>
+                    <TextInput style={styles.input} value={apellido} onChangeText={setApellido} placeholder="Tu apellido" placeholderTextColor="#8C7355" />
+
+                    <Text style={styles.label}>Edad:</Text>
+                    <TextInput style={styles.input} value={edad} onChangeText={setEdad} keyboardType="numeric" placeholder="Tu edad" placeholderTextColor="#8C7355" />
+
+                    <TouchableOpacity style={styles.boton} onPress={guardarDatos} disabled={cargando}>
+                        <FontAwesome name="save" size={14} color="#FFF" style={{ marginRight: 8 }} />
+                        <Text style={styles.textoBoton}>{cargando ? "Guardando..." : "Guardar Datos"}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => navigation.navigate('Perfil')} style={styles.enlacePerfilContainer}>
+                        <FontAwesome name="calendar-check-o" size={14} color="#58391b" />
+                        <Text style={styles.textoEnlacePerfil}>Ver mi Perfil y Asistencia</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* TARJETA 2: REPORTES AL ADMINISTRADOR */}
+                <View style={styles.card}>
+                    <View style={styles.cardHeaderTitle}>
+                        <FontAwesome name="exclamation-circle" size={16} color="#58391b" />
+                        <Text style={styles.title}>Reportes al Administrador</Text>
+                    </View>
+                    <View style={styles.lineaDecorativa} />
+                    
+                    <Text style={styles.subtitle}>Selecciona el tipo de incidencia detectada:</Text>
+
+                    {/* Opciones de problemas en cuadrícula */}
+                    <View style={styles.filaBotones}>
+                        {[
+                            "Falta de material", 
+                            "Problema en plantas", 
+                            "Posible plaga", 
+                            "Exceso de humedad", 
+                            "Temperatura alta", 
+                            "Falta de riego"
+                        ].map((op) => (
+                            <TouchableOpacity 
+                                key={op} 
+                                style={[styles.opcionBtn, tipo === op && styles.opcionSeleccionada]} 
+                                onPress={() => setTipo(op)}
+                            >
+                                <Text style={[styles.textoOp, tipo === op && styles.textoOpSeleccionado]}>{op}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    <TextInput 
+                        style={[styles.input, {height: 75, textAlignVertical: 'top'}]} 
+                        value={descripcion} 
+                        onChangeText={setDescripcion} 
+                        placeholder="Escribe una descripción breve de lo sucedido..." 
+                        placeholderTextColor="#8C7355"
+                        multiline={true}
+                    />
+
+                    <TouchableOpacity style={styles.boton} onPress={enviarReporte}>
+                        <FontAwesome name="send" size={14} color="#FFF" style={{ marginRight: 8 }} />
+                        <Text style={styles.textoBoton}>Enviar Reporte</Text>
+                    </TouchableOpacity>
+
+                    <Text style={[styles.label, {marginTop: 22, color: '#58391b'}]}>Historial de Mis Reportes:</Text>
+                    <View style={[styles.lineaDecorativa, {backgroundColor: '#D7CCC8'}]} />
+                    
+                    {misReportes.length === 0 ? (
+                        <Text style={styles.gris}>Aún no has enviado reportes al sistema.</Text>
+                    ) : (
+                        misReportes.map(r => (
+                            <View key={r.id} style={styles.itemReporte}>
+                                <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4}}>
+                                    <Text style={styles.textoNegrita}>{r.tipo}</Text>
+                                    <View style={[styles.badgeEstado, { backgroundColor: r.estado === 'Visto' ? '#E8F5E9' : '#FFF8E1', borderColor: r.estado === 'Visto' ? '#4CAF50' : '#FFB300' }]}>
+                                        <Text style={{color: r.estado === 'Visto' ? '#2E7D32' : '#F57F17', fontWeight: 'bold', fontSize: 10}}>
+                                            {r.estado}
+                                        </Text>
+                                    </View>
+                                </View>
+                                <Text style={styles.textoGeneral}>{r.descripcion || "Sin descripción"}</Text>
+                                <Text style={styles.fecha}>{r.fecha}</Text>
                             </View>
-                            <Text style={styles.textoGeneral}>{r.descripcion || "Sin descripción"}</Text>
-                            <Text style={styles.fecha}>{r.fecha}</Text>
-                        </View>
-                    ))
-                )}
-            </View>
-        </ScrollView>
+                        ))
+                    )}
+                </View>
+            </ScrollView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flexGrow: 1, backgroundColor: '#F5EBE0', padding: 20, paddingTop: 50, alignItems: 'center' },
-    card: { backgroundColor: '#FFFFFF', borderRadius: 12, padding: 20, width: '100%', maxWidth: 400, marginBottom: 15, elevation: 2, borderWidth: 1, borderColor: '#EFEBE9' },
-    title: { fontSize: 20, fontWeight: 'bold', marginBottom: 6, textAlign: 'center', color: '#4A3328' },
-    subtitle: { fontSize: 13, color: '#8D6E63', marginBottom: 12, textAlign: 'center' },
-    label: { fontSize: 13, fontWeight: 'bold', marginBottom: 4, color: '#4A3328' },
-    input: { backgroundColor: '#FAFAFA', borderWidth: 1, borderColor: '#D7CCC8', borderRadius: 6, padding: 10, marginBottom: 10, fontSize: 14 },
-    boton: { backgroundColor: '#4A3328', padding: 12, borderRadius: 6, alignItems: 'center', marginTop: 5 },
-    textoBoton: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-    filaBotones: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 10 },
-    opcionBtn: { width: '48%', padding: 10, borderWidth: 1, borderColor: '#D7CCC8', borderRadius: 6, marginBottom: 8, alignItems: 'center', backgroundColor: '#FAFAFA' },
-    opcionSeleccionada: { backgroundColor: '#4A3328', borderColor: '#4A3328' },
-    textoOp: { fontSize: 12, color: '#5D4037', textAlign: 'center' },
-    itemReporte: { backgroundColor: '#FAFAFA', padding: 12, borderRadius: 6, marginTop: 8, borderWidth: 1, borderColor: '#EFEBE9' },
-    textoNegrita: { fontWeight: 'bold', fontSize: 14, color: '#4A3328' },
-    textoGeneral: { fontSize: 13, color: '#5D4037' },
-    gris: { color: '#8D6E63', fontSize: 13, fontStyle: 'italic', marginTop: 4 },
-    fecha: { fontSize: 11, color: '#A1887F', marginTop: 4, textAlign: 'right' }
+    container: { 
+        flexGrow: 1, 
+        backgroundColor: '#E8E1D9', 
+    },
+    contenido: {
+        paddingBottom: 30,
+        width: '100%',
+        maxWidth: 650,
+        alignSelf: 'center',
+    },
+    encabezado: {
+        backgroundColor: '#58391b',
+        paddingHorizontal: 22,
+        paddingVertical: 18,
+        borderRadius: 16,
+        elevation: 5,
+        shadowColor: '#58391b',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        marginHorizontal: 16,
+        marginTop: 35,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#7a4f27',
+    },
+    tituloHeader: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFF9F2',
+    },
+    subtituloHeader: {
+        fontSize: 11.5,
+        color: '#E8D8C9',
+        marginTop: 2,
+    },
+    card: { 
+        backgroundColor: '#FFFCF8', 
+        borderRadius: 16, 
+        padding: 20, 
+        width: '93%', 
+        alignSelf: 'center',
+        maxWidth: 550, 
+        marginBottom: 16, 
+        elevation: 3, 
+        borderWidth: 1, 
+        borderColor: '#D7CCC8', 
+        shadowColor: '#58391b',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+    },
+    cardHeaderTitle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 6,
+    },
+    lineaDecorativa: {
+        height: 2,
+        backgroundColor: '#EFEBE9',
+        width: '100%',
+        marginBottom: 14,
+        borderRadius: 2,
+    },
+    title: { 
+        fontSize: 17, 
+        fontWeight: 'bold', 
+        color: '#58391b' 
+    },
+    subtitle: { 
+        fontSize: 12.5, 
+        color: '#8D6E63', 
+        marginBottom: 12, 
+    },
+    label: { 
+        fontSize: 13, 
+        fontWeight: 'bold', 
+        marginBottom: 4, 
+        color: '#58391b' 
+    },
+    input: { 
+        backgroundColor: '#FFFFFF', 
+        borderWidth: 1, 
+        borderColor: '#D7CCC8', 
+        borderRadius: 10, 
+        paddingHorizontal: 12,
+        paddingVertical: 11, 
+        marginBottom: 12, 
+        fontSize: 14,
+        color: '#58391b'
+    },
+    boton: { 
+        flexDirection: 'row',
+        backgroundColor: '#58391b', // Todos los botones unificados en café
+        padding: 13, 
+        borderRadius: 10, 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        marginTop: 6,
+        elevation: 2,
+    },
+    textoBoton: { 
+        color: '#fff', 
+        fontWeight: 'bold', 
+        fontSize: 14 
+    },
+    enlacePerfilContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 14,
+        gap: 8,
+        paddingVertical: 4,
+    },
+    textoEnlacePerfil: {
+        color: '#58391b', 
+        fontWeight: 'bold',
+        fontSize: 13,
+    },
+    filaBotones: { 
+        flexDirection: 'row', 
+        flexWrap: 'wrap', 
+        justifyContent: 'space-between', 
+        marginBottom: 10 
+    },
+    opcionBtn: { 
+        width: '48%', 
+        paddingVertical: 11,
+        paddingHorizontal: 8, 
+        borderWidth: 1, 
+        borderColor: '#D7CCC8', 
+        borderRadius: 10, 
+        marginBottom: 8, 
+        alignItems: 'center', 
+        backgroundColor: '#FFFFFF' 
+    },
+    opcionSeleccionada: { 
+        backgroundColor: '#58391b', // Opción seleccionada en café
+        borderColor: '#58391b' 
+    },
+    textoOp: { 
+        fontSize: 12, 
+        color: '#5D4037', 
+        textAlign: 'center',
+        fontWeight: '600'
+    },
+    textoOpSeleccionado: {
+        color: '#FFFFFF',
+        fontWeight: 'bold',
+    },
+    itemReporte: { 
+        backgroundColor: '#FFFFFF', 
+        padding: 14, 
+        borderRadius: 10, 
+        marginTop: 10, 
+        borderWidth: 1, 
+        borderColor: '#D7CCC8' 
+    },
+    badgeEstado: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 12,
+        borderWidth: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    textoNegrita: { 
+        fontWeight: 'bold', 
+        fontSize: 13.5, 
+        color: '#58391b' 
+    },
+    textoGeneral: { 
+        fontSize: 13, 
+        color: '#5D4037',
+        marginTop: 2
+    },
+    gris: { 
+        color: '#8D6E63', 
+        fontSize: 12.5, 
+        fontStyle: 'italic', 
+        marginTop: 6 
+    },
+    fecha: { 
+        fontSize: 10.5, 
+        color: '#A1887F', 
+        marginTop: 6, 
+        textAlign: 'right' 
+    }
 });

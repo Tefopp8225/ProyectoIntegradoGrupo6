@@ -164,16 +164,6 @@ export default function ProfileScreen({ navigation }) {
 
                         <View style={styles.separadorDecorativo} />
 
-                        <Text style={styles.bienvenida}>
-                            ¡Hola, {datosUsuario.nombre !== 'No asignado'
-                                ? datosUsuario.nombre
-                                : 'bienvenido'}!
-                        </Text>
-
-                        <Text style={styles.mensajeBienvenida}>
-                            Consulta tu información de usuario
-                        </Text>
-
                     </View>
 
                     {/* CONTENEDOR PRINCIPAL UNIFICADO */}
@@ -434,7 +424,7 @@ const styles = StyleSheet.create({
     // ENCABEZADO
 
     encabezado: {
-        backgroundColor: '#382218',
+        backgroundColor: '#58391b',
         width: '100%',
         alignItems: 'center',
         paddingTop: 32,
@@ -447,12 +437,12 @@ const styles = StyleSheet.create({
         width: 90,
         height: 90,
         borderRadius: 45,
-        backgroundColor: '#5C3A21',
+        backgroundColor: '#926545',
         borderWidth: 3,
-        borderColor: '#A4774F',
+        borderColor: '#dbae86',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 14,
+        marginBottom: 5,
     },
 
     title: {
@@ -469,31 +459,6 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
 
-    separadorDecorativo: {
-        width: 40,
-        height: 3,
-        backgroundColor: '#C69B70',
-        borderRadius: 5,
-        marginTop: 15,
-        marginBottom: 14,
-    },
-
-    bienvenida: {
-        fontSize: 21,
-        fontWeight: 'bold',
-        color: '#FFF9F2',
-        textAlign: 'center',
-        paddingHorizontal: 15,
-    },
-
-    mensajeBienvenida: {
-        fontSize: 12,
-        color: '#E8D8C9',
-        marginTop: 4,
-        textAlign: 'center',
-    },
-
-    // CUERPO PRINCIPAL (Ajusta los espacios y acerca los elementos)
 
     cuerpoPrincipal: {
         paddingHorizontal: 18,
