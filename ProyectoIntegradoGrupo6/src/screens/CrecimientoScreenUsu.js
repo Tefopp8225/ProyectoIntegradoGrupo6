@@ -1,7 +1,27 @@
 
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 import io from 'socket.io-client';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, collection, onSnapshot, doc, runTransaction } from 'firebase/firestore';
+import { firebaseConfig } from '../firebase/FirebaseConfig';
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app);
+
+// Nombres oficiales de los productos del inventario
+const PRODUCTOS_BASE = [
+    { id: '1', nombre: 'Tierra' },
+    { id: '2', nombre: 'Abono' },
+    { id: '3', nombre: 'Semillas' },
+    { id: '4', nombre: 'Herbicida' },
+    { id: '5', nombre: 'Fertilizante' }
+];
+
+const obtenerNombreProducto = (id, nombreGuardado = '') => {
+    const producto = PRODUCTOS_BASE.find(p => p.id === String(id));
+    return producto ? producto.nombre : (nombreGuardado || 'Producto desconocido');
+};
 
 const SERVER_URL = 'http://192.168.1.26:3000';
 
@@ -9,6 +29,11 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
     const [conectado, setConectado] = useState(false);
     const [sensorValue, setSensorValue] = useState(0);
+
+    const [inventario, setInventario] = useState([]);
+    const [cantidadesUso, setCantidadesUso] = useState({});
+    const [materialesUtilizados, setMaterialesUtilizados] = useState([]);
+    const [comprasPendientes, setComprasPendientes] = useState([]);
 
     useEffect(() => {
         const nuevaConexion = io(SERVER_URL, {
@@ -45,6 +70,221 @@ export default function CrecimientoScreenUsu({ navigation }) {
             nuevaConexion.disconnect();
         };
     }, []);
+
+    // Cargar inventario en tiempo real
+    useEffect(() => {
+        const cancelarInventario = onSnapshot(
+            collection(db, "inventario"),
+            (snap) => {
+                const lista = [];
+
+                snap.forEach((documento) => {
+                    lista.push({
+                        id: documento.id,
+                        ...documento.data()
+                    });
+                });
+
+                lista.sort((a, b) => Number(a.id) - Number(b.id));
+                setInventario(lista);
+            },
+            (error) => {
+                console.log("Error al cargar inventario:", error);
+                Alert.alert("Error", "No se pudo cargar el inventario.");
+            }
+        );
+
+        return () => cancelarInventario();
+    }, []);
+
+    // Cargar registro de materiales utilizados
+    useEffect(() => {
+        const cancelarRegistro = onSnapshot(
+            collection(db, "materiales_utilizados"),
+            (snap) => {
+                const lista = [];
+
+                snap.forEach((documento) => {
+                    lista.push({
+                        id: documento.id,
+                        ...documento.data()
+                    });
+                });
+
+                lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                setMaterialesUtilizados(lista);
+            },
+            (error) => {
+                console.log("Error al cargar materiales utilizados:", error);
+            }
+        );
+
+        return () => cancelarRegistro();
+    }, []);
+
+    // Cargar pedidos que todavía están en camino
+    useEffect(() => {
+        const cancelarCompras = onSnapshot(
+            collection(db, "compras"),
+            (snap) => {
+                const lista = [];
+
+                snap.forEach((documento) => {
+                    const compra = {
+                        id: documento.id,
+                        ...documento.data()
+                    };
+
+                    if (compra.estado === "En camino") {
+                        lista.push(compra);
+                    }
+                });
+
+                lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                setComprasPendientes(lista);
+            },
+            (error) => {
+                console.log("Error al cargar pedidos:", error);
+                Alert.alert("Error", "No se pudieron cargar los pedidos.");
+            }
+        );
+
+        return () => cancelarCompras();
+    }, []);
+
+    const cambiarCantidadUso = (id, valor) => {
+        setCantidadesUso({
+            ...cantidadesUso,
+            [id]: valor
+        });
+    };
+
+    // Confirmar que el trabajador recibió la compra
+    const confirmarCompra = async (compra) => {
+
+        if (!compra.productoId) {
+            Alert.alert(
+                "Error",
+                "Este pedido no tiene asociado un producto del inventario. Realiza un nuevo pedido desde el administrador."
+            );
+            return;
+        }
+
+        try {
+            await runTransaction(db, async (transaction) => {
+
+                const referenciaCompra = doc(db, "compras", compra.id);
+                const referenciaInventario = doc(db, "inventario", compra.productoId);
+
+                // Leer ambos documentos antes de realizar cambios
+                const documentoCompra = await transaction.get(referenciaCompra);
+                const documentoInventario = await transaction.get(referenciaInventario);
+
+                if (!documentoCompra.exists()) {
+                    throw new Error("El pedido ya no existe.");
+                }
+
+                if (documentoCompra.data().estado !== "En camino") {
+                    throw new Error("Este pedido ya fue recibido anteriormente.");
+                }
+
+                if (!documentoInventario.exists()) {
+                    throw new Error("El producto no existe en el inventario.");
+                }
+
+                const cantidadCompra = Number(documentoCompra.data().cantidad);
+                const cantidadActual = Number(documentoInventario.data().cantidad);
+
+                if (!Number.isInteger(cantidadCompra) || cantidadCompra <= 0) {
+                    throw new Error("La cantidad del pedido no es válida.");
+                }
+
+                if (!Number.isFinite(cantidadActual) || cantidadActual < 0) {
+                    throw new Error("La cantidad actual del inventario no es válida.");
+                }
+
+                // Sumar la compra al inventario
+                transaction.update(referenciaInventario, {
+                    cantidad: cantidadActual + cantidadCompra
+                });
+
+                // Cambiar el estado del pedido
+                transaction.update(referenciaCompra, {
+                    estado: "Recibido",
+                    fechaRecepcion: new Date().toISOString()
+                });
+            });
+
+            Alert.alert(
+                "¡Compra recibida!",
+                `${obtenerNombreProducto(compra.productoId, compra.producto)}: ${compra.cantidad} unidades agregadas al inventario.`
+            );
+
+        } catch (error) {
+            console.log("Error al confirmar compra:", error);
+            Alert.alert("Error", error.message || "No se pudo confirmar la compra.");
+        }
+    };
+
+    // Descontar materiales del inventario
+    const usarMaterial = async (producto) => {
+
+        const cantidad = Number(cantidadesUso[producto.id]);
+
+        if (!Number.isInteger(cantidad) || cantidad <= 0) {
+            Alert.alert("Atención", "Escribe una cantidad válida.");
+            return;
+        }
+
+        try {
+            await runTransaction(db, async (transaction) => {
+
+                const referencia = doc(db, "inventario", producto.id);
+                const documento = await transaction.get(referencia);
+
+                if (!documento.exists()) {
+                    throw new Error("Este producto no existe en el inventario.");
+                }
+
+                const stockActual = Number(documento.data().cantidad);
+
+                if (!Number.isFinite(stockActual) || stockActual < 0) {
+                    throw new Error("La cantidad del inventario no es válida.");
+                }
+
+                if (cantidad > stockActual) {
+                    throw new Error("No hay suficiente cantidad disponible.");
+                }
+
+                transaction.update(referencia, {
+                    cantidad: stockActual - cantidad
+                });
+
+                const nuevoRegistro = doc(collection(db, "materiales_utilizados"));
+
+                transaction.set(nuevoRegistro, {
+                    producto: obtenerNombreProducto(producto.id, producto.nombre),
+                    productoId: producto.id,
+                    cantidad: cantidad,
+                    fecha: new Date().toISOString()
+                });
+            });
+
+            setCantidadesUso({
+                ...cantidadesUso,
+                [producto.id]: ''
+            });
+
+            Alert.alert(
+                "Material utilizado",
+                "Se descontó la cantidad del inventario correctamente."
+            );
+
+        } catch (error) {
+            console.log("Error al utilizar material:", error);
+            Alert.alert("Error", error.message || "No se pudo utilizar el material.");
+        }
+    };
 
     return (
         <SafeAreaView style={styles.areaSegura}>
@@ -88,9 +328,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                             {sensorValue.toFixed(1)}
                         </Text>
 
-                        <Text style={styles.unidad}>
-                            cm
-                        </Text>
+                        <Text style={styles.unidad}>cm</Text>
 
                         <Text style={styles.unidadSensor}>
                             Altura actual de la planta
@@ -125,28 +363,63 @@ export default function CrecimientoScreenUsu({ navigation }) {
                     </Text>
                 </View>
 
+                {/* PEDIDOS PENDIENTES */}
                 <View style={styles.card}>
                     <Text style={styles.titulo}>
-                        ¿Cómo funciona?
+                        Pedidos por recibir
                     </Text>
 
-                    <Text style={styles.descripcionInfo}>
-                        El sensor ultrasónico se encarga de medir la
-                        distancia entre su posición y la parte superior
-                        de la planta. A partir de esta distancia se
-                        calcula la altura de la planta, permitiendo
-                        monitorear su crecimiento dentro del invernadero.
-                    </Text>
+                    {comprasPendientes.length === 0 ? (
+                        <View style={styles.registroPendiente}>
+                            <Text style={styles.iconoRegistro}>📦</Text>
+
+                            <Text style={styles.textoRegistro}>
+                                No hay pedidos pendientes de recibir.
+                            </Text>
+                        </View>
+                    ) : (
+                        comprasPendientes.map((compra) => (
+                            <View key={compra.id} style={styles.pedidoItem}>
+
+                                <View style={styles.pedidoEncabezado}>
+                                    <View style={styles.textoInfo}>
+                                        <Text style={styles.nombreMaterial}>
+                                            {obtenerNombreProducto(compra.productoId, compra.producto)}
+                                        </Text>
+
+                                        <Text style={styles.cantidadMaterial}>
+                                            Cantidad: {compra.cantidad}
+                                        </Text>
+
+                                        <Text style={styles.estadoPedido}>
+                                            Estado: En camino
+                                        </Text>
+
+                                        <Text style={styles.cantidadMaterial}>
+                                            Pedido: {compra.fecha}
+                                        </Text>
+                                    </View>
+
+                                    <Text style={styles.iconoPedido}>🚚</Text>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.botonRecibir}
+                                    onPress={() => confirmarCompra(compra)}
+                                >
+                                    <Text style={styles.textoBotonRecibir}>
+                                        Compra recibida
+                                    </Text>
+                                </TouchableOpacity>
+
+                            </View>
+                        ))
+                    )}
                 </View>
+
                 <View style={styles.card}>
                     <Text style={styles.titulo}>
                         Materiales e inventario
-                    </Text>
-
-                    <Text style={styles.descripcionInfo}>
-                        Consulta los materiales disponibles y lleva
-                        un registro de los recursos utilizados en el
-                        invernadero.
                     </Text>
 
                     <View style={styles.informacion}>
@@ -163,65 +436,56 @@ export default function CrecimientoScreenUsu({ navigation }) {
                         </View>
                     </View>
 
-                    <View style={styles.materialItem}>
-                        <View style={styles.materialTexto}>
-                            <Text style={styles.nombreMaterial}>
-                                Tierra abonada
-                            </Text>
-                            <Text style={styles.cantidadMaterial}>
-                                Cantidad disponible
-                            </Text>
-                        </View>
-
-                        <Text style={styles.cantidadValor}>
-                            25 kg
+                    {inventario.length === 0 ? (
+                        <Text style={styles.registroVacio}>
+                            No hay materiales registrados en el inventario.
                         </Text>
-                    </View>
+                    ) : (
+                        inventario.map((producto) => (
+                            <View key={producto.id} style={styles.materialCompacto}>
 
-                    <View style={styles.materialItem}>
-                        <View style={styles.materialTexto}>
-                            <Text style={styles.nombreMaterial}>
-                                Fertilizante
-                            </Text>
-                            <Text style={styles.cantidadMaterial}>
-                                Cantidad disponible
-                            </Text>
-                        </View>
+                                <View style={styles.materialEncabezado}>
+                                    <Text style={styles.nombreMaterial}>
+                                        {obtenerNombreProducto(producto.id, producto.nombre)}
+                                    </Text>
 
-                        <Text style={styles.cantidadValor}>
-                            10 unidades
-                        </Text>
-                    </View>
+                                    <Text style={styles.stockMaterial}>
+                                        Stock: {producto.cantidad}
+                                    </Text>
+                                </View>
 
-                    <View style={styles.materialItem}>
-                        <View style={styles.materialTexto}>
-                            <Text style={styles.nombreMaterial}>
-                                Semillas
-                            </Text>
-                            <Text style={styles.cantidadMaterial}>
-                                Cantidad disponible
-                            </Text>
-                        </View>
+                                <View style={styles.filaUso}>
+                                    <TextInput
+                                        style={styles.inputUso}
+                                        placeholder="Cantidad"
+                                        value={cantidadesUso[producto.id] || ''}
+                                        onChangeText={(valor) => cambiarCantidadUso(producto.id, valor)}
+                                        keyboardType="numeric"
+                                    />
 
-                        <Text style={styles.cantidadValor}>
-                            50 unidades
-                        </Text>
-                    </View>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.botonUsar,
+                                            Number(producto.cantidad) <= 0 && styles.botonDesactivado
+                                        ]}
+                                        disabled={Number(producto.cantidad) <= 0}
+                                        onPress={() => usarMaterial(producto)}
+                                    >
+                                        <Text style={styles.textoBotonUsar}>
+                                            Usar
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
 
-                    <View style={styles.materialItem}>
-                        <View style={styles.materialTexto}>
-                            <Text style={styles.nombreMaterial}>
-                                Macetas
-                            </Text>
-                            <Text style={styles.cantidadMaterial}>
-                                Cantidad disponible
-                            </Text>
-                        </View>
+                                {Number(producto.cantidad) <= 0 && (
+                                    <Text style={styles.sinStock}>
+                                        Sin existencias disponibles
+                                    </Text>
+                                )}
 
-                        <Text style={styles.cantidadValor}>
-                            15 unidades
-                        </Text>
-                    </View>
+                            </View>
+                        ))
+                    )}
 
                     <View style={styles.separadorMaterial} />
 
@@ -229,14 +493,34 @@ export default function CrecimientoScreenUsu({ navigation }) {
                         Registro de materiales utilizados
                     </Text>
 
-                    <View style={styles.registroPendiente}>
-                        <Text style={styles.iconoRegistro}>📝</Text>
+                    {materialesUtilizados.length === 0 ? (
+                        <View style={styles.registroPendiente}>
+                            <Text style={styles.iconoRegistro}>📝</Text>
 
-                        <Text style={styles.textoRegistro}>
-                            Aquí se mostrarán los materiales utilizados
-                            y las cantidades registradas en el invernadero.
-                        </Text>
-                    </View>
+                            <Text style={styles.textoRegistro}>
+                                Aquí aparecerán los materiales utilizados
+                                y las cantidades registradas.
+                            </Text>
+                        </View>
+                    ) : (
+                        materialesUtilizados.map((registro) => (
+                            <View key={registro.id} style={styles.registroMaterial}>
+                                <View style={styles.textoInfo}>
+                                    <Text style={styles.nombreMaterial}>
+                                        {obtenerNombreProducto(registro.productoId, registro.producto)}
+                                    </Text>
+
+                                    <Text style={styles.cantidadMaterial}>
+                                        {new Date(registro.fecha).toLocaleString('es-GT')}
+                                    </Text>
+                                </View>
+
+                                <Text style={styles.cantidadValor}>
+                                    -{registro.cantidad}
+                                </Text>
+                            </View>
+                        ))
+                    )}
 
                 </View>
 
@@ -402,72 +686,176 @@ const styles = StyleSheet.create({
         textAlign: 'justify',
         marginTop: 15,
     },
-    materialItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8F4EF',
-    padding: 15,
-    borderRadius: 12,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#E1D4C6',
-},
 
-materialTexto: {
-    flex: 1,
-},
+    pedidoItem: {
+        backgroundColor: '#F8F4EF',
+        padding: 13,
+        borderRadius: 10,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
 
-nombreMaterial: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#4A3328',
-},
+    pedidoEncabezado: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
 
-cantidadMaterial: {
-    fontSize: 12,
-    color: '#8B6F47',
-    marginTop: 4,
-},
+    iconoPedido: {
+        fontSize: 30,
+        marginLeft: 10,
+    },
 
-cantidadValor: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#53634A',
-},
+    estadoPedido: {
+        color: '#D97706',
+        fontWeight: 'bold',
+        fontSize: 13,
+        marginTop: 5,
+    },
 
-separadorMaterial: {
-    height: 1,
-    backgroundColor: '#E1D4C6',
-    marginVertical: 20,
-},
+    botonRecibir: {
+        backgroundColor: '#53634A',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 12,
+    },
 
-subtituloRegistro: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#4A3328',
-    marginBottom: 12,
-},
+    textoBotonRecibir: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 14,
+    },
 
-registroPendiente: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3E9DC',
-    padding: 15,
-    borderRadius: 12,
-},
+    materialCompacto: {
+        backgroundColor: '#F8F4EF',
+        padding: 12,
+        borderRadius: 10,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
 
-iconoRegistro: {
-    fontSize: 28,
-    marginRight: 12,
-},
+    materialEncabezado: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
 
-textoRegistro: {
-    flex: 1,
-    fontSize: 13,
-    color: '#6B5142',
-    lineHeight: 20,
-    textAlign: 'justify',
-},
+    nombreMaterial: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#4A3328',
+    },
+
+    cantidadMaterial: {
+        fontSize: 12,
+        color: '#8B6F47',
+        marginTop: 4,
+    },
+
+    stockMaterial: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#53634A',
+    },
+
+    filaUso: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+
+    inputUso: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#D7CCC8',
+        borderRadius: 7,
+        padding: 8,
+        backgroundColor: 'white',
+        marginRight: 8,
+        fontSize: 14,
+    },
+
+    botonUsar: {
+        backgroundColor: '#53634A',
+        paddingVertical: 10,
+        paddingHorizontal: 22,
+        borderRadius: 7,
+        alignItems: 'center',
+    },
+
+    botonDesactivado: {
+        backgroundColor: '#A9A9A9',
+    },
+
+    textoBotonUsar: {
+        color: 'white',
+        fontWeight: 'bold',
+        fontSize: 13,
+    },
+
+    sinStock: {
+        fontSize: 12,
+        color: '#A94438',
+        marginTop: 6,
+    },
+
+    registroVacio: {
+        fontSize: 13,
+        color: '#8B6F47',
+        marginTop: 15,
+        textAlign: 'center',
+    },
+
+    separadorMaterial: {
+        height: 1,
+        backgroundColor: '#E1D4C6',
+        marginVertical: 20,
+    },
+
+    subtituloRegistro: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#4A3328',
+        marginBottom: 12,
+    },
+
+    registroPendiente: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F3E9DC',
+        padding: 15,
+        borderRadius: 12,
+    },
+
+    iconoRegistro: {
+        fontSize: 28,
+        marginRight: 12,
+    },
+
+    textoRegistro: {
+        flex: 1,
+        fontSize: 13,
+        color: '#6B5142',
+        lineHeight: 20,
+        textAlign: 'justify',
+    },
+
+    registroMaterial: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#F8F4EF',
+        padding: 12,
+        borderRadius: 10,
+        marginBottom: 8,
+    },
+
+    cantidadValor: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#53634A',
+    },
 
 });
