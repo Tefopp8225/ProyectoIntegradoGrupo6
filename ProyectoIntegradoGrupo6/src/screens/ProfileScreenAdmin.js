@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import {
@@ -67,24 +68,51 @@ export default function ProfileScreen({ navigation }) {
             return isNaN(fechaConvertida) ? 0 : fechaConvertida;
         };
 
-        // 2. Escuchar compras
+        // 2. Escuchar compras realizadas
+        let comprasInicializadas = false;
+        const ordenesCompras = new Map();
+
         const unsubscribeCompras = onSnapshot(
             collection(db, 'compras'),
             (snap) => {
 
-                const lista = [];
+                // Detectar compras nuevas y asignarles hora de registro
+                snap.docChanges().forEach((cambio) => {
 
-                snap.forEach((d) => {
+                    if (cambio.type === 'added') {
+
+                        const compra = cambio.doc.data();
+
+                        ordenesCompras.set(
+                            cambio.doc.id,
+                            comprasInicializadas
+                                ? Date.now()
+                                : convertirFecha(compra.fecha)
+                        );
+                    }
+
+                    if (cambio.type === 'removed') {
+                        ordenesCompras.delete(cambio.doc.id);
+                    }
+                });
+
+                const lista = snap.docs.map((d) => {
+
                     const compra = d.data();
 
-                    lista.push({
+                    return {
                         id: d.id,
                         tipo: 'compra',
-                        mensaje: `Se compró ${compra.producto || 'un producto'}`,
+                        mensaje: `Compra realizada: ${compra.producto || 'un producto'}`,
+                        detalle: compra.cantidad
+                            ? `Cantidad: ${compra.cantidad}`
+                            : undefined,
                         fecha: compra.fecha || 'Fecha no disponible',
-                        orden: convertirFecha(compra.fecha)
-                    });
+                        orden: ordenesCompras.get(d.id) || convertirFecha(compra.fecha)
+                    };
                 });
+
+                comprasInicializadas = true;
 
                 setCompras(lista);
             },
@@ -216,20 +244,20 @@ export default function ProfileScreen({ navigation }) {
         );
 
         // 6. Detectar pedidos de compra eliminados en tiempo real
-        let comprasInicializadas = false;
+        let comprasEliminadasInicializadas = false;
         const comprasConocidas = new Map();
 
         const unsubscribeComprasTiempoReal = onSnapshot(
             collection(db, 'compras'),
             (snap) => {
 
-                if (!comprasInicializadas) {
+                if (!comprasEliminadasInicializadas) {
 
                     snap.forEach((d) => {
                         comprasConocidas.set(d.id, d.data());
                     });
 
-                    comprasInicializadas = true;
+                    comprasEliminadasInicializadas = true;
                     return;
                 }
 
@@ -330,14 +358,14 @@ export default function ProfileScreen({ navigation }) {
         return 'history';
     };
 
-    // 11. Colores según actividad (Verde más vivo: #2E7D32 / #4CAF50)
+    // 11. Colores según actividad
     const obtenerColor = (tipo) => {
 
-        if (tipo === 'compra') return '#5C3A21'; // Tono café principal vivo
+        if (tipo === 'compra') return '#5C3A21';
 
         if (tipo === 'compraEliminada') return '#C16C52';
 
-        if (tipo === 'asistencia') return '#2E7D32'; // Verde más vivo y destacado
+        if (tipo === 'asistencia') return '#2E7D32';
 
         if (tipo === 'reporte') return '#8E44AD';
 
@@ -350,7 +378,7 @@ export default function ProfileScreen({ navigation }) {
 
         if (tipo === 'compraEliminada') return '#F8E9E3';
 
-        if (tipo === 'asistencia') return '#E8F5E9'; // Fondo verde claro vivo
+        if (tipo === 'asistencia') return '#E8F5E9';
 
         if (tipo === 'reporte') return '#F4ECF7';
 
@@ -360,7 +388,6 @@ export default function ProfileScreen({ navigation }) {
     return (
 
         <View style={styles.container}>
-            {/* Barra de estado con estilo oscuro para que combine perfectamente */}
             <StatusBar barStyle="light-content" backgroundColor="#382218" />
 
             <ScrollView
@@ -436,7 +463,7 @@ export default function ProfileScreen({ navigation }) {
                             <FontAwesome
                                 name="check-circle"
                                 size={22}
-                                color="#2E7D32" // Verde vivo y brillante
+                                color="#2E7D32"
                             />
 
                         </View>
@@ -641,7 +668,7 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
     },
 
-    // ENCABEZADO (Café Principal Vivo)
+    // ENCABEZADO
 
     encabezado: {
         backgroundColor: '#58391b',
@@ -678,6 +705,7 @@ const styles = StyleSheet.create({
         marginTop: 5,
         letterSpacing: 1,
     },
+
     seccionUsuario: {
         width: '100%',
         paddingHorizontal: 22,
@@ -897,7 +925,8 @@ const styles = StyleSheet.create({
         marginBottom: 13,
     },
 
-    // BOTÓN PRINCIPAL (Café vibrante y elegante)
+    // BOTÓN PRINCIPAL
+
     boton: {
         backgroundColor: '#58391b',
         width: '100%',
