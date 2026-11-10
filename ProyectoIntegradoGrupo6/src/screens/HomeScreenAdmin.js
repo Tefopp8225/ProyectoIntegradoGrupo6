@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
         color: '#444',
     },
     listaContainer: {
-        maxHeight: 310,
+        maxHeight: '60%',
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 15,
