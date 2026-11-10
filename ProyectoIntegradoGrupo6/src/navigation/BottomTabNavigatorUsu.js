@@ -29,8 +29,9 @@ export default function BottomTabNavigatorUsu() {
                 name="Inicio"
                 component={HomeScreenUsu}
                 options={{
-                    tabBarIcon: () => (
-                        <AntDesign name="home" size={28} color="black" />
+                    headerShown: false,
+                    tabBarIcon: ({ color }) => (
+                        <AntDesign name="home" size={28} color={color} />
                     )    
                 }}
             />
@@ -41,8 +42,9 @@ export default function BottomTabNavigatorUsu() {
                 name="Crecimiento"
                 component={CrecimientoScreenUsu}
                 options={{
-                    tabBarIcon: () => (
-                        <MaterialIcons name="trending-up" size={32} color="black" />
+                    headerShown: false,
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="trending-up" size={32} color={color} />
                     ) 
                 }}
             />
@@ -51,8 +53,9 @@ export default function BottomTabNavigatorUsu() {
                 name="Ambiente"
                 component={AmbienteScreen}
                 options={{
-                    tabBarIcon: () => (
-                        <MaterialIcons name="eco" size={32} color="black" />
+                    headerShown: false,
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="eco" size={32} color={color} />
                     ) 
                 }}
             />
@@ -61,8 +64,9 @@ export default function BottomTabNavigatorUsu() {
                 name="Riego"
                 component={RiegoScreen}
                 options={{
-                    tabBarIcon: () => (
-                        <MaterialIcons name="water-drop" size={32} color="black" />
+                    headerShown: false,
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="water-drop" size={30} color={color} />
                     ) 
                 }}
             />
@@ -73,8 +77,9 @@ export default function BottomTabNavigatorUsu() {
                 name="Perfil"
                 component={ProfileScreenUsu}
                 options={{
-                    tabBarIcon: () => (
-                        <Feather name="user" size={30} color="black" />
+                    headerShown: false,
+                    tabBarIcon: ({ color }) => (
+                        <Feather name="user" size={30} color={color} />
                     )
                 }}
             />
