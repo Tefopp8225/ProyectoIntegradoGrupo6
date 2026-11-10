@@ -1,169 +1,176 @@
-
 import React, { useState, useEffect } from 'react';
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Button } from 'react-native';
+import { initializeApp, getApps } from 'firebase/app';
+import { getFirestore, collection, query, where, onSnapshot } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { firebaseConfig } from '../firebase/FirebaseConfig';
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app);
 
 export default function ProfileScreen({ navigation }) {
-
-    const [email, setEmail] = useState('');
+    const [datosUsuario, setDatosUsuario] = useState({
+        nombre: '',
+        apellido: '',
+        edad: '',
+        email: '',
+        estado: 'Ausente'
+    });
 
     useEffect(() => {
-        const auth = getAuth();
+        const auth = getAuth(app);
+        const user = auth.currentUser;
+        
+        if (!user) return;
 
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                setEmail(user.email.split('@')[0]);
+        // Escucha en tiempo real los cambios en su documento
+        const q = query(collection(db, "users"), where("email", "==", user.email));
+        
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            if (!querySnapshot.empty) {
+                const userDoc = querySnapshot.docs[0];
+                const data = userDoc.data();
+                
+                setDatosUsuario({
+                    nombre: data.nombre || 'No asignado',
+                    apellido: data.apellido || 'No asignado',
+                    edad: data.edad || 'No especificada',
+                    email: data.email || user.email,
+                    estado: data.estado || 'Ausente'
+                });
             }
+        }, (error) => {
+            console.error("Error al escuchar perfil:", error);
         });
 
-        return unsubscribe;
+        return () => unsubscribe();
     }, []);
 
-    const cerrarSesion = async () => {
-        const auth = getAuth();
-        await signOut(auth);
-        navigation.navigate('Login');
-    };
+    const estaPresente = datosUsuario.estado === 'Presente';
 
     return (
         <View style={styles.container}>
-
-            <View style={styles.caja}>
-
+            <View style={styles.caja}> 
                 <Text style={styles.title}>Mi Perfil</Text>
+                <FontAwesome name="user-circle-o" size={85} color="#4A3328" style={{ marginBottom: 15 }} />
+                
+                {/* CONDICIÓN: Solo muestra los datos si el admin lo marcó como Presente */}
+                {estaPresente ? (
+                    <View style={styles.infoContainer}>
+                        <Text style={styles.labelInfo}>Nombre:</Text>
+                        <Text style={styles.valorInfo}>{datosUsuario.nombre}</Text>
 
-                <View style={styles.circulo}>
-                    <FontAwesome name="user-circle-o" size={90} color="black" />
+                        <Text style={styles.labelInfo}>Apellido:</Text>
+                        <Text style={styles.valorInfo}>{datosUsuario.apellido}</Text>
+
+                        <Text style={styles.labelInfo}>Edad:</Text>
+                        <Text style={styles.valorInfo}>{datosUsuario.edad}</Text>
+
+                        <Text style={styles.labelInfo}>Correo:</Text>
+                        <Text style={styles.valorInfo}>{datosUsuario.email}</Text>
+                    </View>
+                ) : (
+                    <View style={styles.alertaContainer}>
+                        <FontAwesome name="lock" size={30} color="#c62828" style={{ marginBottom: 10 }} />
+                        <Text style={styles.alertaTexto}>
+                            Tus datos y perfil completo estarán disponibles una vez que el administrador registre tu asistencia como <Text style={{fontWeight: 'bold', color: '#2e7d32'}}>Presente</Text>.
+                        </Text>
+                    </View>
+                )}
+
+                {/* Insignia de estado sincronizada */}
+                <View style={[styles.badgeEstado, { backgroundColor: estaPresente ? '#2e7d32' : '#c62828' }]}>
+                    <Text style={styles.textoEstado}>Estado de Asistencia: {datosUsuario.estado}</Text>
                 </View>
 
-                <Text style={styles.bienvenida}>
-                    ¡Bienvenido!
-                </Text>
-
-                <View style={styles.tarjeta}>
-                    <Text style={styles.etiqueta}>USUARIO</Text>
-
-                    <Text style={styles.text}>
-                        {email}
-                    </Text>
-                </View>
-
-                <View style={styles.linea} />
-
-                <TouchableOpacity
-                    style={styles.boton}
-                    onPress={cerrarSesion}
-                >
-                    <FontAwesome
-                        name="sign-out"
-                        size={20}
-                        color="white"
+                <View style={{ width: '100%', marginTop: 10 }}>
+                    <Button 
+                        title="Cerrar sesión"
+                        color="#4A3328"
+                        onPress={() => navigation.navigate('Login')}
                     />
-
-                    <Text style={styles.textoBoton}>
-                        Cerrar sesión
-                    </Text>
-                </TouchableOpacity>
-
+                </View>
             </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-
     container: {
         backgroundColor: '#E1D4C6',
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        padding: 20,
     },
-
     caja: {
-        backgroundColor: '#fefefcf3',
-        width: '88%',
-        borderRadius: 35,
-        justifyContent: 'center',
+        backgroundColor: '#ffffff',
+        borderRadius: 30,
+        padding: 30,
         alignItems: 'center',
-        paddingVertical: 45,
-        paddingHorizontal: 25,
-
-        elevation: 6,
-        shadowColor: '#4A3328',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
+        width: '100%',
+        maxWidth: 400,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
     },
-
     title: {
-        fontSize: 34,
+        fontSize: 30,
         fontWeight: 'bold',
-        color: '#4A3328',
-        marginBottom: 30,
+        marginBottom: 10,
+        color: '#333',
     },
-
-    circulo: {
-        backgroundColor: '#E1D4C6',
-        width: 125,
-        height: 125,
-        borderRadius: 65,
-        justifyContent: 'center',
-        alignItems: 'center',
+    infoContainer: {
+        width: '100%',
+        backgroundColor: '#f9f9f9',
+        borderRadius: 12,
+        padding: 15,
         marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#eee',
     },
-
-    bienvenida: {
-        fontSize: 23,
-        fontWeight: 'bold',
-        color: '#4A3328',
-        marginBottom: 25,
-    },
-
-    tarjeta: {
-        backgroundColor: '#F2EAE1',
+    alertaContainer: {
         width: '100%',
-        borderRadius: 15,
-        padding: 18,
+        backgroundColor: '#fdf2f2',
+        borderRadius: 12,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#f5c6cb',
         alignItems: 'center',
     },
-
-    etiqueta: {
+    alertaTexto: {
+        fontSize: 14,
+        color: '#721c24',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    labelInfo: {
         fontSize: 12,
-        color: '#927966',
         fontWeight: 'bold',
-        letterSpacing: 2,
-        marginBottom: 8,
+        color: '#777',
+        marginTop: 5,
     },
-
-    text: {
-        fontSize: 22,
-        color: '#4A3328',
+    valorInfo: {
+        fontSize: 16,
         fontWeight: '600',
+        color: '#333',
+        marginBottom: 5,
     },
-
-    linea: {
-        width: '70%',
-        height: 1,
-        backgroundColor: '#D8C6B5',
-        marginVertical: 30,
-    },
-
-    boton: {
-        backgroundColor: '#4A3328',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+    badgeEstado: {
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        borderRadius: 20,
+        marginBottom: 20,
         width: '100%',
-        padding: 16,
-        borderRadius: 15,
-        gap: 12,
+        alignItems: 'center',
     },
-
-    textoBoton: {
-        color: 'white',
-        fontSize: 17,
+    textoEstado: {
+        color: '#fff',
+        fontSize: 15,
         fontWeight: 'bold',
-    },
-
+    }
 });
