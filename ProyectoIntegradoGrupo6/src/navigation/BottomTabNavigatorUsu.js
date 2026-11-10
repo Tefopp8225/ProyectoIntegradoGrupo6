@@ -11,41 +11,36 @@ import Feather from '@expo/vector-icons/Feather';
 const Tab = createBottomTabNavigator();
 
 export default function BottomTabNavigatorUsu() {
-
     return (
-
         <Tab.Navigator
-             screenOptions={{
-                tabBarActiveTintColor: '#0fbbe6',
-                tabBarInactiveTintColor: '#111f7a',
+            screenOptions={{
+                tabBarActiveTintColor: '#f3efec',
+                tabBarInactiveTintColor: '#96674c',
                 tabBarStyle: {
-                    backgroundColor: '#c8c8cb'
+                    backgroundColor: '#ccb6a6'
                 },
                 tabBarShowLabel: false
             }}
         >
-            {/* Primera opción del menú inferior. */}
             <Tab.Screen
                 name="Inicio"
                 component={HomeScreenUsu}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <AntDesign name="home" size={28} color="black" />
-                    )    
+                    tabBarIcon: ({ color }) => (
+                        <AntDesign name="home" size={28} color={color} />
+                    )
                 }}
             />
-
-            {/* Segunda opción.*/}
 
             <Tab.Screen
                 name="Crecimiento"
                 component={CrecimientoScreenUsu}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <MaterialIcons name="trending-up" size={32} color="black" />
-                    ) 
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="trending-up" size={32} color={color} />
+                    )
                 }}
             />
 
@@ -54,9 +49,9 @@ export default function BottomTabNavigatorUsu() {
                 component={AmbienteScreen}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <MaterialIcons name="eco" size={32} color="black" />
-                    ) 
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="eco" size={32} color={color} />
+                    )
                 }}
             />
 
@@ -65,27 +60,22 @@ export default function BottomTabNavigatorUsu() {
                 component={RiegoScreen}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <MaterialIcons name="water-drop" size={32} color="black" />
-                    ) 
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="water-drop" size={32} color={color} />
+                    )
                 }}
             />
-
-            {/* Tercera opción del menú inferior. */}
 
             <Tab.Screen
                 name="Perfil"
                 component={ProfileScreenUsu}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <Feather name="user" size={30} color="black" />
+                    tabBarIcon: ({ color }) => (
+                        <Feather name="user" size={30} color={color} />
                     )
                 }}
             />
-
-
         </Tab.Navigator>
-
     );
 }

@@ -14,12 +14,12 @@ export default function BottomTabNavigatorAdmin() {
     return (
         <Tab.Navigator
             screenOptions={{
-                tabBarActiveTintColor: '#0fbbe6',
-                tabBarInactiveTintColor: '#111f7a',
+                tabBarActiveTintColor: '#f3efec',
+                tabBarInactiveTintColor: '#96674c',
                 tabBarStyle: {
-                    backgroundColor: '#c8c8cb'
+                    backgroundColor: '#ccb6a6'
                 },
-                tabBarShowLabel: false 
+                tabBarShowLabel: false
             }}
         >
             {/* Pestaña de Inicio del Administrador */}
@@ -30,7 +30,7 @@ export default function BottomTabNavigatorAdmin() {
                     headerShown: false,
                     tabBarIcon: ({ color }) => (
                         <AntDesign name="home" size={28} color={color} />
-                    )    
+                    )
                 }}
             />
 
@@ -52,7 +52,7 @@ export default function BottomTabNavigatorAdmin() {
                 options={{
                     headerShown: false,
                     tabBarIcon: ({ color }) => (
-                        <MaterialIcons name="analytics"size={30} color={color} />
+                        <MaterialIcons name="analytics" size={30} color={color} />
                     )
                 }}
             />
