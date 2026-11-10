@@ -4,68 +4,55 @@ import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
-//CAMBIAR IP
 const SERVER_URL = 'http://192.168.0.32:3000';
 
 export default function AmbienteScreen({ navigation }) {
     const [socket, setSocket] = useState(null);
     const [sensorTemValue, setSensorTemValue] = useState(0);
     const [conectado, setConectado] = useState(false);
-    const [bombaEncendida, setBombaEncendida] = useState(false);
+
+    const [ventiladorEncendido, setVentiladorEncendido] = useState(false);
+    const [ventanaAbierta, setVentanaAbierta] = useState(false);
+    const [ledInvernaderoEncendido, setLedInvernaderoEncendido] = useState(false);
+    const [led1CalleEncendido, setLed1CalleEncendido] = useState(false);
+    const [led2CalleEncendido, setLed2CalleEncendido] = useState(false);
 
     useEffect(() => {
         const nuevaConexion = io(SERVER_URL);
         setSocket(nuevaConexion);
 
-        nuevaConexion.on('connect', () => {
-            setConectado(true);
-            console.log('Conectado al servidor');
-        });
+        nuevaConexion.on('connect', () => setConectado(true));
+        nuevaConexion.on('disconnect', () => setConectado(false));
 
-        nuevaConexion.on('disconnect', () => {
-            setConectado(false);
-            console.log('Desconectado del servidor');
-        });
+        nuevaConexion.on('temperatura_data', (data) => setSensorTemValue(data.value));
 
-        nuevaConexion.on('sensor_data', (data) => {
-            setSensorTemValue(data.value);
-            console.log(`Sensor 1: ${data.value}`);
-        });
+        nuevaConexion.on('ventilador_state', (data) => setVentiladorEncendido(!!data.encendido));
+        nuevaConexion.on('ventana_state', (data) => setVentanaAbierta(!!data.abierta));
+        nuevaConexion.on('ledinvernadero_state', (data) => setLedInvernaderoEncendido(!!data.encendido));
+        nuevaConexion.on('led1calle_state', (data) => setLed1CalleEncendido(!!data.encendido));
+        nuevaConexion.on('led2calle_state', (data) => setLed2CalleEncendido(!!data.encendido));
 
-
-
-        // Estado real de la bomba enviado por el Arduino
-        nuevaConexion.on('bomba_state', (data) => {
-            console.log('[APP] bomba_state recibido:', data);
-            if (data && data.encendida !== undefined) {
-                setBombaEncendida(data.encendida);
-            }
-        });
-
-        return () => {
-            nuevaConexion.disconnect();
-        };
+        return () => nuevaConexion.disconnect();
     }, []);
 
-    const encenderBomba = () => {
+    const enviar = (evento, action) => {
         if (!socket || !conectado) {
             Alert.alert('Error', 'No estas conectado al servidor');
             return;
         }
-        socket.emit('command_bomba', { action: 'ON' });
-        console.log('[APP] Enviando: BOMBA ON');
+        socket.emit(evento, { action });
     };
 
-    const apagarBomba = () => {
-        if (!socket || !conectado) {
-            Alert.alert('Error', 'No estas conectado al servidor');
-            return;
-        }
-        socket.emit('command_bomba', { action: 'OFF' });
-        console.log('[APP] Enviando: BOMBA OFF');
-    };
-
-
+    const encenderVentilador = () => enviar('command_ventilador', 'ON');
+    const apagarVentilador = () => enviar('command_ventilador', 'OFF');
+    const abrirVentana = () => enviar('command_ventana', 'ABRIR');
+    const cerrarVentana = () => enviar('command_ventana', 'CERRAR');
+    const encenderLedInvernadero = () => enviar('command_ledinvernadero', 'ON');
+    const apagarLedInvernadero = () => enviar('command_ledinvernadero', 'OFF');
+    const encenderLed1Calle = () => enviar('command_led1calle', 'ON');
+    const apagarLed1Calle = () => enviar('command_led1calle', 'OFF');
+    const encenderLed2Calle = () => enviar('command_led2calle', 'ON');
+    const apagarLed2Calle = () => enviar('command_led2calle', 'OFF');
     return (
         <SafeAreaView style={styles.areaSegura}>
             <ScrollView
@@ -99,13 +86,13 @@ export default function AmbienteScreen({ navigation }) {
                     <Text style={styles.descripcionInfo}>Encienda y apague el ventilador de manera manual usando los botones o abra el techo para regular la temperatura.</Text>
                     <View style={styles.apartadoProgramado}>
                         <Text style={styles.titulo}>Ventilador</Text>
-                        <Text style={[styles.estado, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                            {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
+                        <Text style={[styles.estado, ventiladorEncendido ? styles.conectado : styles.desconectado]}>
+                            {ventiladorEncendido ? 'ENCENDIDO' : 'APAGADO'}
                         </Text>
                         <View style={styles.botones}>
                             <TouchableOpacity
                                 style={[styles.boton, styles.botonEncender]}
-                                onPress={encenderBomba}
+                                onPress={encenderVentilador}
                                 disabled={!conectado}
                             >
                                 <Text style={styles.textoBoton}>ENCENDER</Text>
@@ -113,7 +100,7 @@ export default function AmbienteScreen({ navigation }) {
 
                             <TouchableOpacity
                                 style={[styles.boton, styles.botonApagar]}
-                                onPress={apagarBomba}
+                                onPress={apagarVentilador}
                                 disabled={!conectado}
                             >
                                 <Text style={styles.textoBoton}>APAGAR</Text>
@@ -123,13 +110,13 @@ export default function AmbienteScreen({ navigation }) {
 
                     <View style={styles.apartadoProgramado}>
                         <Text style={styles.titulo}>Techo</Text>
-                        <Text style={[styles.estado, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                            {bombaEncendida ? 'ABIERTO' : 'CERRADO'}
+                        <Text style={[styles.estado, ventanaAbierta ? styles.conectado : styles.desconectado]}>
+                            {ventanaAbierta ? 'ABIERTO' : 'CERRADO'}
                         </Text>
                         <View style={styles.botones}>
                             <TouchableOpacity
                                 style={[styles.boton, styles.botonEncender]}
-                                onPress={encenderBomba}
+                                onPress={abrirVentana}
                                 disabled={!conectado}
                             >
                                 <Text style={styles.textoBoton}>ABRIR</Text>
@@ -137,7 +124,7 @@ export default function AmbienteScreen({ navigation }) {
 
                             <TouchableOpacity
                                 style={[styles.boton, styles.botonApagar]}
-                                onPress={apagarBomba}
+                                onPress={cerrarVentana}
                                 disabled={!conectado}
                             >
                                 <Text style={styles.textoBoton}>CERRAR</Text>
@@ -155,8 +142,8 @@ export default function AmbienteScreen({ navigation }) {
                     <View style={styles.apartadoLuces}>
                         <View style={styles.apartadoLuz}>
                             <Text style={styles.iconoProgramado}>💡</Text>
-                            <Text style={[styles.estadoLuces, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                                {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
+                            <Text style={[styles.estadoLuces, ledInvernaderoEncendido ? styles.conectado : styles.desconectado]}>
+                                {ledInvernaderoEncendido ? 'ENCENDIDO' : 'APAGADO'}
                             </Text>
                         </View>
                         <View style={styles.textoProgramado}>
@@ -165,7 +152,7 @@ export default function AmbienteScreen({ navigation }) {
                                 <View style={styles.botones2}>
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonEncender]}
-                                        onPress={encenderBomba}
+                                        onPress={encenderLedInvernadero}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>ENCENDER</Text>
@@ -173,7 +160,7 @@ export default function AmbienteScreen({ navigation }) {
 
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonApagar]}
-                                        onPress={apagarBomba}
+                                        onPress={apagarLedInvernadero}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>APAGAR</Text>
@@ -186,8 +173,8 @@ export default function AmbienteScreen({ navigation }) {
                     <View style={styles.apartadoLuces}>
                         <View style={styles.apartadoLuz}>
                             <Text style={styles.iconoProgramado}>💡</Text>
-                            <Text style={[styles.estadoLuces, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                                {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
+                            <Text style={[styles.estadoLuces, led1CalleEncendido  ? styles.conectado : styles.desconectado]}>
+                                {led1CalleEncendido  ? 'ENCENDIDO' : 'APAGADO'}
                             </Text>
                         </View>
                         <View style={styles.textoProgramado}>
@@ -196,7 +183,7 @@ export default function AmbienteScreen({ navigation }) {
                                 <View style={styles.botones2}>
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonEncender]}
-                                        onPress={encenderBomba}
+                                        onPress={encenderLed1Calle}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>ENCENDER</Text>
@@ -204,7 +191,7 @@ export default function AmbienteScreen({ navigation }) {
 
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonApagar]}
-                                        onPress={apagarBomba}
+                                        onPress={apagarLed1Calle}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>APAGAR</Text>
@@ -217,8 +204,8 @@ export default function AmbienteScreen({ navigation }) {
                     <View style={styles.apartadoLuces}>
                         <View style={styles.apartadoLuz}>
                             <Text style={styles.iconoProgramado}>💡</Text>
-                            <Text style={[styles.estadoLuces, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                                {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
+                            <Text style={[styles.estadoLuces, led2CalleEncendido  ? styles.conectado : styles.desconectado]}>
+                                {led2CalleEncendido  ? 'ENCENDIDO' : 'APAGADO'}
                             </Text>
                         </View>
                         <View style={styles.textoProgramado}>
@@ -227,7 +214,7 @@ export default function AmbienteScreen({ navigation }) {
                                 <View style={styles.botones2}>
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonEncender]}
-                                        onPress={encenderBomba}
+                                        onPress={encenderLed2Calle}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>ENCENDER</Text>
@@ -235,7 +222,7 @@ export default function AmbienteScreen({ navigation }) {
 
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonApagar]}
-                                        onPress={apagarBomba}
+                                        onPress={apagarLed2Calle}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>APAGAR</Text>
@@ -253,7 +240,7 @@ export default function AmbienteScreen({ navigation }) {
 const styles = StyleSheet.create({
     areaSegura: {
         flex: 1,
-        backgroundColor: '#AAD576'
+        backgroundColor: '#F3E9DC'
     },
     scrollView: {
         flex: 1
@@ -272,6 +259,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#c8e1c6',
+        marginTop:15,
     },
     icono: {
         marginRight: 15,
@@ -309,7 +297,7 @@ const styles = StyleSheet.create({
         color: '#3c5a14'
     },
     sensorBox: {
-        backgroundColor: '#AAD576',
+        backgroundColor: '#F3E9DC',
         borderRadius: 15,
         paddingVertical: 20,
         paddingHorizontal: 30,
@@ -356,17 +344,17 @@ const styles = StyleSheet.create({
     },
     apartadoLuz:{
         flexDirection:'column',
-        marginRight:10
+        marginRight:14
     },
     botonEncender: {
-        backgroundColor: '#38b000'
+        backgroundColor: '#2e7d32'
     },
     botonApagar: {
-        backgroundColor: '#e9494bee'
+        backgroundColor: '#c62828'
     },
     descripcionInfo: {
         fontSize: 14,
-        color: '#274c77',
+        color: '#6B5142',
         lineHeight: 22,
         textAlign: 'justify',
         marginTop: 10,
@@ -405,7 +393,7 @@ const styles = StyleSheet.create({
     },
     apartadoProgramado: {
         alignItems: 'center',
-        backgroundColor: '#AAD576',
+        backgroundColor: '#F3E9DC',
         padding: 15,
         borderRadius: 12,
         marginTop: 15,
@@ -413,7 +401,7 @@ const styles = StyleSheet.create({
     },
     iconoProgramado: {
         fontSize: 35,
-        marginLeft:15,
+        marginLeft:17,
         marginBottom:10
     },
     textoProgramado: {
@@ -421,18 +409,12 @@ const styles = StyleSheet.create({
     },
     subtituloProgramado: {
         fontSize: 20,
-        color: '#274c77',
-    },
-    valorTiempoProgramado: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#274c77',
-        marginTop: 4,
+        color: '#3c5a14',
     },
     apartadoLuces: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#AAD576',
+        backgroundColor: '#F3E9DC',
         padding: 10,
         paddingTop:15,
         paddingBottom:15,
@@ -449,7 +431,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 8,
         borderRadius: 10,
-        minWidth: 80,
+        minWidth: 95,
         alignItems: 'center',
         margin: 2
     },

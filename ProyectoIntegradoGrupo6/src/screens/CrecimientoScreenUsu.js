@@ -11,40 +11,40 @@ export default function CrecimientoScreenUsu({ navigation }) {
     const [sensorValue, setSensorValue] = useState(0);
 
     useEffect(() => {
-    const nuevaConexion = io(SERVER_URL, {
-        reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
-    });
+        const nuevaConexion = io(SERVER_URL, {
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 2000,
+        });
 
-    nuevaConexion.on('connect', () => {
-        setConectado(true);
-        console.log('Conectado al servidor:', nuevaConexion.id);
-    });
+        nuevaConexion.on('connect', () => {
+            setConectado(true);
+            console.log('Conectado al servidor:', nuevaConexion.id);
+        });
 
-    nuevaConexion.on('disconnect', (motivo) => {
-        setConectado(false);
-        console.log('Desconectado del servidor:', motivo);
-    });
+        nuevaConexion.on('disconnect', (motivo) => {
+            setConectado(false);
+            console.log('Desconectado del servidor:', motivo);
+        });
 
-    nuevaConexion.on('connect_error', (error) => {
-        setConectado(false);
-        console.log('ERROR DE CONEXION:', error.message);
-    });
+        nuevaConexion.on('connect_error', (error) => {
+            setConectado(false);
+            console.log('ERROR DE CONEXION:', error.message);
+        });
 
-    nuevaConexion.on('sensor_data', (data) => {
-        const altura = parseFloat(data.value);
+        nuevaConexion.on('sensor_data', (data) => {
+            const altura = parseFloat(data.value);
 
-        if (Number.isFinite(altura)) {
-            setSensorValue(altura);
-            console.log(`Altura de la planta: ${altura} cm`);
-        }
-    });
+            if (Number.isFinite(altura)) {
+                setSensorValue(altura);
+                console.log(`Altura de la planta: ${altura} cm`);
+            }
+        });
 
-    return () => {
-        nuevaConexion.disconnect();
-    };
-}, []);
+        return () => {
+            nuevaConexion.disconnect();
+        };
+    }, []);
 
     return (
         <SafeAreaView style={styles.areaSegura}>
@@ -137,6 +137,107 @@ export default function CrecimientoScreenUsu({ navigation }) {
                         calcula la altura de la planta, permitiendo
                         monitorear su crecimiento dentro del invernadero.
                     </Text>
+                </View>
+                <View style={styles.card}>
+                    <Text style={styles.titulo}>
+                        Materiales e inventario
+                    </Text>
+
+                    <Text style={styles.descripcionInfo}>
+                        Consulta los materiales disponibles y lleva
+                        un registro de los recursos utilizados en el
+                        invernadero.
+                    </Text>
+
+                    <View style={styles.informacion}>
+                        <Text style={styles.iconoInfo}>📦</Text>
+
+                        <View style={styles.textoInfo}>
+                            <Text style={styles.subtitulo}>
+                                Materiales disponibles
+                            </Text>
+
+                            <Text style={styles.valorInfo}>
+                                Inventario actual
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.materialItem}>
+                        <View style={styles.materialTexto}>
+                            <Text style={styles.nombreMaterial}>
+                                Tierra abonada
+                            </Text>
+                            <Text style={styles.cantidadMaterial}>
+                                Cantidad disponible
+                            </Text>
+                        </View>
+
+                        <Text style={styles.cantidadValor}>
+                            25 kg
+                        </Text>
+                    </View>
+
+                    <View style={styles.materialItem}>
+                        <View style={styles.materialTexto}>
+                            <Text style={styles.nombreMaterial}>
+                                Fertilizante
+                            </Text>
+                            <Text style={styles.cantidadMaterial}>
+                                Cantidad disponible
+                            </Text>
+                        </View>
+
+                        <Text style={styles.cantidadValor}>
+                            10 unidades
+                        </Text>
+                    </View>
+
+                    <View style={styles.materialItem}>
+                        <View style={styles.materialTexto}>
+                            <Text style={styles.nombreMaterial}>
+                                Semillas
+                            </Text>
+                            <Text style={styles.cantidadMaterial}>
+                                Cantidad disponible
+                            </Text>
+                        </View>
+
+                        <Text style={styles.cantidadValor}>
+                            50 unidades
+                        </Text>
+                    </View>
+
+                    <View style={styles.materialItem}>
+                        <View style={styles.materialTexto}>
+                            <Text style={styles.nombreMaterial}>
+                                Macetas
+                            </Text>
+                            <Text style={styles.cantidadMaterial}>
+                                Cantidad disponible
+                            </Text>
+                        </View>
+
+                        <Text style={styles.cantidadValor}>
+                            15 unidades
+                        </Text>
+                    </View>
+
+                    <View style={styles.separadorMaterial} />
+
+                    <Text style={styles.subtituloRegistro}>
+                        Registro de materiales utilizados
+                    </Text>
+
+                    <View style={styles.registroPendiente}>
+                        <Text style={styles.iconoRegistro}>📝</Text>
+
+                        <Text style={styles.textoRegistro}>
+                            Aquí se mostrarán los materiales utilizados
+                            y las cantidades registradas en el invernadero.
+                        </Text>
+                    </View>
+
                 </View>
 
             </ScrollView>
@@ -301,5 +402,72 @@ const styles = StyleSheet.create({
         textAlign: 'justify',
         marginTop: 15,
     },
+    materialItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8F4EF',
+    padding: 15,
+    borderRadius: 12,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#E1D4C6',
+},
+
+materialTexto: {
+    flex: 1,
+},
+
+nombreMaterial: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4A3328',
+},
+
+cantidadMaterial: {
+    fontSize: 12,
+    color: '#8B6F47',
+    marginTop: 4,
+},
+
+cantidadValor: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#53634A',
+},
+
+separadorMaterial: {
+    height: 1,
+    backgroundColor: '#E1D4C6',
+    marginVertical: 20,
+},
+
+subtituloRegistro: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#4A3328',
+    marginBottom: 12,
+},
+
+registroPendiente: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E9DC',
+    padding: 15,
+    borderRadius: 12,
+},
+
+iconoRegistro: {
+    fontSize: 28,
+    marginRight: 12,
+},
+
+textoRegistro: {
+    flex: 1,
+    fontSize: 13,
+    color: '#6B5142',
+    lineHeight: 20,
+    textAlign: 'justify',
+},
 
 });

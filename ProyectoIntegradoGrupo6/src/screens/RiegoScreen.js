@@ -4,7 +4,6 @@ import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialCommunityIcons2 from '@expo/vector-icons/MaterialCommunityIcons';
 
-//CAMBIAR IP
 const SERVER_URL = 'http://192.168.0.32:3000';
 
 export default function RiegoScreen({ navigation }) {
@@ -13,43 +12,28 @@ export default function RiegoScreen({ navigation }) {
     const [sensor2HumedadValue, setSensor2HumedadValue] = useState(0);
     const [conectado, setConectado] = useState(false);
     const [bombaEncendida, setBombaEncendida] = useState(false);
+    const [riegoProgramado, setRiegoProgramado] = useState(null); // { minutos, hora (???) PENDIENTE}
 
     useEffect(() => {
         const nuevaConexion = io(SERVER_URL);
         setSocket(nuevaConexion);
 
-        nuevaConexion.on('connect', () => {
-            setConectado(true);
-            console.log('Conectado al servidor');
-        });
+        nuevaConexion.on('connect', () => setConectado(true));
+        nuevaConexion.on('disconnect', () => setConectado(false));
 
-        nuevaConexion.on('disconnect', () => {
-            setConectado(false);
-            console.log('Desconectado del servidor');
-        });
+        nuevaConexion.on('sensor1_humedad_data', (data) => setSensorHumedadValue(data.value));
+        nuevaConexion.on('sensor2_humedad_data', (data) => setSensor2HumedadValue(data.value));
 
-        nuevaConexion.on('sensor_data', (data) => {
-            setSensorHumedadValue(data.value);
-            console.log(`Sensor 1: ${data.value}`);
-        });
-
-        nuevaConexion.on('sensor2_data', (data) => {
-            setSensor2HumedadValue(data.value);
-            console.log(`Sensor 2: ${data.value}`);
-        });
-
-
-        // Estado real de la bomba enviado por el Arduino
         nuevaConexion.on('bomba_state', (data) => {
-            console.log('[APP] bomba_state recibido:', data);
-            if (data && data.encendida !== undefined) {
-                setBombaEncendida(data.encendida);
-            }
+            if (data && data.encendida !== undefined) setBombaEncendida(data.encendida);
         });
 
-        return () => {
-            nuevaConexion.disconnect();
-        };
+        // Aviso de riego programado por el admin
+        nuevaConexion.on('riego_programado_data', (data) => {
+            if (data && data.minutos !== undefined) setRiegoProgramado(data);
+        });
+
+        return () => nuevaConexion.disconnect();
     }, []);
 
     const encenderBomba = () => {
@@ -58,7 +42,6 @@ export default function RiegoScreen({ navigation }) {
             return;
         }
         socket.emit('command_bomba', { action: 'ON' });
-        console.log('[APP] Enviando: BOMBA ON');
     };
 
     const apagarBomba = () => {
@@ -67,8 +50,12 @@ export default function RiegoScreen({ navigation }) {
             return;
         }
         socket.emit('command_bomba', { action: 'OFF' });
-        console.log('[APP] Enviando: BOMBA OFF');
     };
+
+    const textoProgramado = riegoProgramado
+        ? `${riegoProgramado.minutos} minutos${riegoProgramado.hora ? ` a las ${riegoProgramado.hora}` : ''}`
+        : 'No programado';
+
 
 
     return (
@@ -87,15 +74,13 @@ export default function RiegoScreen({ navigation }) {
                     </View>
                 </View>
 
-
-
                 <View style={styles.card}>
                     <View style={styles.sensoresSection}>
                         <Text style={styles.SensoresTitulo}>Nivel de humedad</Text>
 
                         <View style={styles.sensoresRow}>
                             <View style={styles.sensorBox}>
-                                <MaterialCommunityIcons2 style={styles.iconoSensor} name="watering-can" size={60} color="#274c77" />
+                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={50} color="#274c77" />
                                 <Text style={styles.sensorValor}>{sensorHumedadValue}</Text>
                                 <Text style={styles.sensorLabel}>Fila 1</Text>
                             </View>
@@ -117,7 +102,7 @@ export default function RiegoScreen({ navigation }) {
                             <Text style={styles.iconoProgramado}>🕒</Text>
                             <View style={styles.textoProgramado}>
                                 <Text style={styles.subtituloProgramado}>Tiempo</Text>
-                                <Text style={styles.valorTiempoProgramado}>minutos</Text>
+                                <Text style={styles.valorTiempoProgramado}>{textoProgramado}</Text>
                             </View>
                         </View>
                         <Text style={styles.descripcionInfo}>En caso de que el administrador no haya establecido un horario, usted puede activar el sistema de manera manual en el apartado de abajo.</Text>
@@ -159,7 +144,7 @@ export default function RiegoScreen({ navigation }) {
 const styles = StyleSheet.create({
     areaSegura: {
         flex: 1,
-        backgroundColor: '#A3CEF1'
+        backgroundColor: '#F3E9DC'
     },
     scrollView: {
         flex: 1
@@ -178,6 +163,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#c6cbe1',
+        marginTop:15,
     },
     icono: {
         fontSize: 40,
@@ -216,7 +202,7 @@ const styles = StyleSheet.create({
         color: '#274c77'
     },
     sensorBox: {
-        backgroundColor: '#A3CEF1',
+        backgroundColor: '#F3E9DC',
         borderRadius: 15,
         paddingVertical: 20,
         paddingHorizontal: 30,
@@ -253,14 +239,14 @@ const styles = StyleSheet.create({
         width: '100%'
     },
     botonEncender: {
-        backgroundColor: '#A7C957'
+        backgroundColor: '#2e7d32'
     },
     botonApagar: {
-        backgroundColor: '#e9494bee'
+        backgroundColor: '#c62828'
     },
     descripcionInfo: {
         fontSize: 14,
-        color: '#274c77',
+        color: '#6B5142',
         lineHeight: 22,
         textAlign: 'justify',
         marginTop: 10,
@@ -299,7 +285,7 @@ const styles = StyleSheet.create({
     apartadoProgramado: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#A3CEF1',
+        backgroundColor: '#F3E9DC',
         padding: 15,
         borderRadius: 12,
         marginTop: 5,
