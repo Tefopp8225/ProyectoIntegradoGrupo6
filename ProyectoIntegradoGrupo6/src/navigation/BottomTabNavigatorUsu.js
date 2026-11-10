@@ -30,8 +30,8 @@ export default function BottomTabNavigatorUsu() {
                 component={HomeScreenUsu}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <AntDesign name="home" size={28} color="black" />
+                    tabBarIcon: ({ color }) => (
+                        <AntDesign name="home" size={28} color={color} />
                     )    
                 }}
             />
@@ -43,8 +43,8 @@ export default function BottomTabNavigatorUsu() {
                 component={CrecimientoScreenUsu}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <MaterialIcons name="trending-up" size={32} color="black" />
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="trending-up" size={32} color={color} />
                     ) 
                 }}
             />
@@ -54,8 +54,8 @@ export default function BottomTabNavigatorUsu() {
                 component={AmbienteScreen}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <MaterialIcons name="eco" size={32} color="black" />
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="eco" size={32} color={color} />
                     ) 
                 }}
             />
@@ -65,8 +65,8 @@ export default function BottomTabNavigatorUsu() {
                 component={RiegoScreen}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <MaterialIcons name="water-drop" size={32} color="black" />
+                    tabBarIcon: ({ color }) => (
+                        <MaterialIcons name="water-drop" size={30} color={color} />
                     ) 
                 }}
             />
@@ -78,8 +78,8 @@ export default function BottomTabNavigatorUsu() {
                 component={ProfileScreenUsu}
                 options={{
                     headerShown: false,
-                    tabBarIcon: () => (
-                        <Feather name="user" size={30} color="black" />
+                    tabBarIcon: ({ color }) => (
+                        <Feather name="user" size={30} color={color} />
                     )
                 }}
             />
