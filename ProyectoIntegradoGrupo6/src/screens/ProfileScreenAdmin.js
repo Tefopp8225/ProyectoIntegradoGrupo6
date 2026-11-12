@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
     caja: {
         backgroundColor: '#FFFCF8',
         width: '100%',
-        maxWidth: '91%',
+        maxWidth: '93%',
         borderRadius: 28,
         overflow: 'hidden',
 

@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     contenido: {
         paddingBottom: 25,
         width: '100%',
-        maxWidth: 650,
+        maxWidth: '94%',
         alignSelf: 'center',
     },
     encabezado: {
@@ -424,11 +424,11 @@ const styles = StyleSheet.create({
 
     seccionRespuesta: {
         backgroundColor: '#FFFCF8',
-        padding: 15,
+        padding: 20,
         borderRadius: 18,
         borderWidth: 1,
         borderColor: '#D4E2D4',
-        elevation: 2,
+        elevation: 3,
         shadowColor: '#693c12',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.06,
@@ -526,14 +526,14 @@ const styles = StyleSheet.create({
     descripcionSeccion: {
         fontSize: 11.5,
         color: '#5C765D',
-        marginBottom: 8,
+        marginBottom: 15,
     },
 
     contenedorPreguntas: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: 10,
+        gap: 12,
     },
 
     botonPregunta: {
@@ -541,8 +541,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFCF8',
-        padding: 10,
-        borderRadius: 12,
+        padding: 14,
+        borderRadius: 13,
         borderWidth: 1,
         borderColor: '#D4E2D4',
         gap: 8,
