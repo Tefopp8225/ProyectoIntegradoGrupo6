@@ -456,9 +456,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                 LADO A
                             </Text>
 
-                            <Text style={styles.distanciaLado}>
-                                Aproximadamente 10 cm
-                            </Text>
 
                             <View style={[
                                 styles.indicadorLado,
@@ -494,9 +491,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                 LADO B
                             </Text>
 
-                            <Text style={styles.distanciaLado}>
-                                Aproximadamente 30 cm
-                            </Text>
 
                             <View style={[
                                 styles.indicadorLado,
@@ -519,12 +513,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                         </View>
 
                     </View>
-
-                    <Text style={styles.notaSensor}>
-                        El sensor monitorea una distancia máxima de 40 cm
-                        para identificar cuándo una planta llega a la zona
-                        de corte.
-                    </Text>
+                    
 
                 </View>
 
