@@ -80,12 +80,12 @@ export default function RiegoScreen({ navigation }) {
 
                         <View style={styles.sensoresRow}>
                             <View style={styles.sensorBox}>
-                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={50} color="#274c77" />
+                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={60} color="#274c77" />
                                 <Text style={styles.sensorValor}>{sensorHumedadValue}</Text>
                                 <Text style={styles.sensorLabel}>Fila 1</Text>
                             </View>
                             <View style={styles.sensorBox}>
-                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={50} color="#274c77" />
+                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={60} color="#274c77" />
                                 <Text style={styles.sensorValor}>{sensor2HumedadValue}</Text>
                                 <Text style={styles.sensorLabel}>Fila 2</Text>
                             </View>
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
         borderColor: '#c6cbe1',
     },
     sensorValor: {
-        fontSize: 48,
+        fontSize: 50,
         fontWeight: 'bold',
         color: '#274c77'
     },
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
         marginLeft:10,
     },
     sensorLabel: {
-        fontSize: 20,
+        fontSize: 30,
         color: '#274c77',
         marginTop: 8,
     },
