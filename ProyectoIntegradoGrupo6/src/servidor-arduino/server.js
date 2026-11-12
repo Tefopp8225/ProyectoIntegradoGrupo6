@@ -1,7 +1,5 @@
-
-//Servidor de prueba
-
 // 1. IMPORTAR LIBRERIAS
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -9,14 +7,21 @@ const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const cors = require('cors');
 
+
 // 2. CREAR SERVIDOR
+
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+
+const io = new Server(server, {
+    cors: { origin: '*' }
+});
 
 app.use(cors());
 
+
 // 3. CONFIGURAR PUERTO SERIAL
+
 const PUERTO_ARDUINO = 'COM5';
 
 let serialPort;
@@ -36,14 +41,19 @@ try {
 
 }
 
-// 4. ESTADO DE LOS SENSORES Y HISTORIAL
+
+// 4. ESTADO DE LOS SENSORES E HISTORIAL
 
 let sensorValue = 0;
-let alturaValue = 0;
+
+let distanciaValue = 0;
+
+let zonaAnterior = 'NINGUNA';
 
 let historial = [];
 
-// FUNCION PARA GUARDAR REGISTROS
+
+// 5. FUNCION PARA GUARDAR REGISTROS
 
 function registrarRegistro(tipo, nombre, valor) {
 
@@ -57,19 +67,43 @@ function registrarRegistro(tipo, nombre, valor) {
 
     historial.unshift(registro);
 
-    // Mantener solamente los últimos 100 registros
     if (historial.length > 100) {
         historial.pop();
     }
 
-    // Enviar el nuevo registro a la aplicación
     io.emit('historial_update', registro);
 
     console.log('[HISTORIAL]', registro);
 
 }
 
-// 5. LEER DATOS DEL ARDUINO
+
+// 6. IDENTIFICAR LA ZONA DE LA PLANTA
+
+function identificarZona(distancia) {
+
+    if (distancia >= 7 && distancia <= 13) {
+
+        return 'A';
+
+    }
+
+    else if (distancia >= 27 && distancia <= 33) {
+
+        return 'B';
+
+    }
+
+    else {
+
+        return 'NINGUNA';
+
+    }
+
+}
+
+
+// 7. LEER DATOS DEL ARDUINO
 
 if (serialPort) {
 
@@ -77,11 +111,13 @@ if (serialPort) {
         new ReadlineParser({ delimiter: '\n' })
     );
 
+
     parser.on('data', (line) => {
 
         line = line.trim();
 
         console.log('[ARDUINO]', line);
+
 
         // SENSOR DE HUMEDAD
 
@@ -105,31 +141,74 @@ if (serialPort) {
 
         }
 
-        // SENSOR ULTRASONICO - CRECIMIENTO
 
-        if (line.startsWith('ALTURA:')) {
+        // SENSOR ULTRASONICO
 
-            alturaValue = parseFloat(line.split(':')[1]);
+        if (line.startsWith('DISTANCIA:')) {
 
-            if (Number.isFinite(alturaValue)) {
+            distanciaValue = parseFloat(line.split(':')[1]);
 
-                console.log('[CRECIMIENTO] Altura:', alturaValue, 'cm');
+            if (!Number.isFinite(distanciaValue)) {
+                return;
+            }
 
-                io.emit('sensor_data', {
-                    value: alturaValue
-                });
+            // Si no hay detección válida, establecer distancia en cero
 
-                registrarRegistro(
-                    'Sensor',
-                    'Sensor ultrasónico',
-                    alturaValue.toFixed(1) + ' cm'
-                );
+            if (distanciaValue < 0 || distanciaValue > 40) {
+                distanciaValue = 0;
+            }
+
+            // Enviar la distancia real a la pantalla de crecimiento
+
+            io.emit('plant_distance', {
+                value: distanciaValue
+            });
+
+
+            // Identificar si corresponde al lado A o B
+
+            const zonaActual = identificarZona(distanciaValue);
+
+            console.log(
+                '[PLANTAS] Distancia:',
+                distanciaValue,
+                'cm | Zona:',
+                zonaActual
+            );
+
+
+            // Registrar solamente cuando cambia a una zona detectada
+
+            if (zonaActual !== zonaAnterior) {
+
+                if (zonaActual === 'A') {
+
+                    registrarRegistro(
+                        'Sensor',
+                        'Planta lado A',
+                        distanciaValue.toFixed(1) + ' cm'
+                    );
+
+                }
+
+                else if (zonaActual === 'B') {
+
+                    registrarRegistro(
+                        'Sensor',
+                        'Planta lado B',
+                        distanciaValue.toFixed(1) + ' cm'
+                    );
+
+                }
+
+                zonaAnterior = zonaActual;
 
             }
 
         }
 
     });
+
 
     // ERROR DEL PUERTO SERIAL
 
@@ -138,6 +217,7 @@ if (serialPort) {
         console.log('[ERROR] Error en el puerto:', error.message);
 
     });
+
 
     // PUERTO ABIERTO
 
@@ -149,21 +229,25 @@ if (serialPort) {
 
 }
 
-// 6. MANEJAR CONEXIONES DE LA APP
+
+// 8. MANEJAR CONEXIONES DE LA APP
 
 io.on('connection', (socket) => {
 
     console.log('[APP] App conectada:', socket.id);
 
+
     // ENVIAR HISTORIAL AL CONECTARSE
 
     socket.emit('historial_data', historial);
 
-    // ENVIAR ALTURA ACTUAL
 
-    socket.emit('sensor_data', {
-        value: alturaValue
+    // ENVIAR DISTANCIA ACTUAL DEL ULTRASONICO
+
+    socket.emit('plant_distance', {
+        value: distanciaValue
     });
+
 
     // CONTROL DE LED
 
@@ -211,7 +295,10 @@ io.on('connection', (socket) => {
 
                 if (error) {
 
-                    console.log('[ERROR] No se pudo enviar el comando:', error.message);
+                    console.log(
+                        '[ERROR] No se pudo enviar el comando:',
+                        error.message
+                    );
 
                 } else {
 
@@ -239,6 +326,7 @@ io.on('connection', (socket) => {
 
     });
 
+
     socket.on('disconnect', () => {
 
         console.log('[APP] App desconectada:', socket.id);
@@ -247,7 +335,8 @@ io.on('connection', (socket) => {
 
 });
 
-// 7. INICIAR SERVIDOR
+
+// 9. INICIAR SERVIDOR
 
 const PORT = 3000;
 
@@ -259,17 +348,20 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('Puerto:', PORT);
     console.log('Arduino:', PUERTO_ARDUINO);
     console.log('Historial activado');
+    console.log('Sensor de crecimiento activado');
     console.log('========================================');
 
 });
 
-// 8. MANEJAR ERRORES GENERALES
+
+// 10. MANEJAR ERRORES GENERALES
 
 process.on('uncaughtException', (error) => {
 
     console.log('[ERROR] Error inesperado:', error.message);
 
 });
+
 
 process.on('SIGINT', () => {
 

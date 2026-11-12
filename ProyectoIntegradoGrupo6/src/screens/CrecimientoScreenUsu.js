@@ -1,15 +1,23 @@
 
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+
 import io from 'socket.io-client';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, runTransaction } from 'firebase/firestore';
+import {
+    getFirestore,
+    collection,
+    onSnapshot,
+    doc,
+    runTransaction
+} from 'firebase/firestore';
+
 import { firebaseConfig } from '../firebase/FirebaseConfig';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-// Nombres oficiales de los productos del inventario
+
 const PRODUCTOS_BASE = [
     { id: '1', nombre: 'Tierra' },
     { id: '2', nombre: 'Abono' },
@@ -28,14 +36,22 @@ const SERVER_URL = 'http://192.168.1.26:3000';
 export default function CrecimientoScreenUsu({ navigation }) {
 
     const [conectado, setConectado] = useState(false);
-    const [sensorValue, setSensorValue] = useState(0);
+
+    // Distancia detectada por el sensor ultrasónico
+    const [sensorDistance, setSensorDistance] = useState(null);
+
+    // Estado de los dos lados
+    const [ladoA, setLadoA] = useState(false);
+    const [ladoB, setLadoB] = useState(false);
 
     const [inventario, setInventario] = useState([]);
     const [cantidadesUso, setCantidadesUso] = useState({});
     const [materialesUtilizados, setMaterialesUtilizados] = useState([]);
     const [comprasPendientes, setComprasPendientes] = useState([]);
 
+    // CONEXIÓN CON EL SENSOR
     useEffect(() => {
+
         const nuevaConexion = io(SERVER_URL, {
             reconnection: true,
             reconnectionAttempts: 10,
@@ -49,6 +65,10 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
         nuevaConexion.on('disconnect', (motivo) => {
             setConectado(false);
+            setSensorDistance(null);
+            setLadoA(false);
+            setLadoB(false);
+
             console.log('Desconectado del servidor:', motivo);
         });
 
@@ -57,25 +77,58 @@ export default function CrecimientoScreenUsu({ navigation }) {
             console.log('ERROR DE CONEXION:', error.message);
         });
 
-        nuevaConexion.on('sensor_data', (data) => {
-            const altura = parseFloat(data.value);
+        // Recibir distancia del sensor
+        nuevaConexion.on('plant_distance', (data) => {
 
-            if (Number.isFinite(altura)) {
-                setSensorValue(altura);
-                console.log(`Altura de la planta: ${altura} cm`);
+            const distancia = parseFloat(data.value);
+
+            if (!Number.isFinite(distancia)) {
+                return;
             }
+
+            setSensorDistance(distancia);
+
+            // Si no detecta nada o supera los 40 cm
+            if (distancia <= 0 || distancia > 40) {
+                setLadoA(false);
+                setLadoB(false);
+                return;
+            }
+
+            // LADO A: aproximadamente 10 cm
+            if (distancia >= 7 && distancia <= 13) {
+                setLadoA(true);
+                setLadoB(false);
+            }
+
+            // LADO B: aproximadamente 30 cm
+            else if (distancia >= 27 && distancia <= 33) {
+                setLadoA(false);
+                setLadoB(true);
+            }
+
+            // Si está dentro de 40 cm pero fuera de las zonas
+            else {
+                setLadoA(false);
+                setLadoB(false);
+            }
+
+            console.log('Distancia detectada:', distancia, 'cm');
         });
 
         return () => {
             nuevaConexion.disconnect();
         };
+
     }, []);
 
-    // Cargar inventario en tiempo real
+    // CARGAR INVENTARIO EN TIEMPO REAL
     useEffect(() => {
+
         const cancelarInventario = onSnapshot(
             collection(db, "inventario"),
             (snap) => {
+
                 const lista = [];
 
                 snap.forEach((documento) => {
@@ -87,6 +140,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                 lista.sort((a, b) => Number(a.id) - Number(b.id));
                 setInventario(lista);
+
             },
             (error) => {
                 console.log("Error al cargar inventario:", error);
@@ -95,13 +149,16 @@ export default function CrecimientoScreenUsu({ navigation }) {
         );
 
         return () => cancelarInventario();
+
     }, []);
 
-    // Cargar registro de materiales utilizados
+    // CARGAR REGISTRO DE MATERIALES UTILIZADOS
     useEffect(() => {
+
         const cancelarRegistro = onSnapshot(
             collection(db, "materiales_utilizados"),
             (snap) => {
+
                 const lista = [];
 
                 snap.forEach((documento) => {
@@ -113,6 +170,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                 lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
                 setMaterialesUtilizados(lista);
+
             },
             (error) => {
                 console.log("Error al cargar materiales utilizados:", error);
@@ -120,16 +178,20 @@ export default function CrecimientoScreenUsu({ navigation }) {
         );
 
         return () => cancelarRegistro();
+
     }, []);
 
-    // Cargar pedidos que todavía están en camino
+    // CARGAR PEDIDOS PENDIENTES
     useEffect(() => {
+
         const cancelarCompras = onSnapshot(
             collection(db, "compras"),
             (snap) => {
+
                 const lista = [];
 
                 snap.forEach((documento) => {
+
                     const compra = {
                         id: documento.id,
                         ...documento.data()
@@ -138,10 +200,12 @@ export default function CrecimientoScreenUsu({ navigation }) {
                     if (compra.estado === "En camino") {
                         lista.push(compra);
                     }
+
                 });
 
                 lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
                 setComprasPendientes(lista);
+
             },
             (error) => {
                 console.log("Error al cargar pedidos:", error);
@@ -150,16 +214,19 @@ export default function CrecimientoScreenUsu({ navigation }) {
         );
 
         return () => cancelarCompras();
+
     }, []);
 
     const cambiarCantidadUso = (id, valor) => {
+
         setCantidadesUso({
             ...cantidadesUso,
             [id]: valor
         });
+
     };
 
-    // Confirmar que el trabajador recibió la compra
+    // CONFIRMAR RECEPCIÓN DE COMPRA
     const confirmarCompra = async (compra) => {
 
         if (!compra.productoId) {
@@ -171,12 +238,13 @@ export default function CrecimientoScreenUsu({ navigation }) {
         }
 
         try {
+
             await runTransaction(db, async (transaction) => {
 
                 const referenciaCompra = doc(db, "compras", compra.id);
                 const referenciaInventario = doc(db, "inventario", compra.productoId);
 
-                // Leer ambos documentos antes de realizar cambios
+
                 const documentoCompra = await transaction.get(referenciaCompra);
                 const documentoInventario = await transaction.get(referenciaInventario);
 
@@ -203,16 +271,18 @@ export default function CrecimientoScreenUsu({ navigation }) {
                     throw new Error("La cantidad actual del inventario no es válida.");
                 }
 
-                // Sumar la compra al inventario
+
                 transaction.update(referenciaInventario, {
                     cantidad: cantidadActual + cantidadCompra
                 });
 
-                // Cambiar el estado del pedido
+
+
                 transaction.update(referenciaCompra, {
                     estado: "Recibido",
                     fechaRecepcion: new Date().toISOString()
                 });
+
             });
 
             Alert.alert(
@@ -221,12 +291,19 @@ export default function CrecimientoScreenUsu({ navigation }) {
             );
 
         } catch (error) {
+
             console.log("Error al confirmar compra:", error);
-            Alert.alert("Error", error.message || "No se pudo confirmar la compra.");
+
+            Alert.alert(
+                "Error",
+                error.message || "No se pudo confirmar la compra."
+            );
+
         }
+
     };
 
-    // Descontar materiales del inventario
+    // UTILIZAR MATERIAL DEL INVENTARIO
     const usarMaterial = async (producto) => {
 
         const cantidad = Number(cantidadesUso[producto.id]);
@@ -237,6 +314,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
         }
 
         try {
+
             await runTransaction(db, async (transaction) => {
 
                 const referencia = doc(db, "inventario", producto.id);
@@ -268,6 +346,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                     cantidad: cantidad,
                     fecha: new Date().toISOString()
                 });
+
             });
 
             setCantidadesUso({
@@ -281,108 +360,203 @@ export default function CrecimientoScreenUsu({ navigation }) {
             );
 
         } catch (error) {
+
             console.log("Error al utilizar material:", error);
-            Alert.alert("Error", error.message || "No se pudo utilizar el material.");
+
+            Alert.alert(
+                "Error",
+                error.message || "No se pudo utilizar el material."
+            );
+
         }
+
     };
 
+    // DETERMINAR SI ALGUNO DE LOS LADOS ESTÁ LISTO
+    const plantaLista = ladoA || ladoB;
+
     return (
+
         <SafeAreaView style={styles.areaSegura}>
+
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.contenidoScroll}
             >
 
                 <View style={styles.presentacion}>
+
                     <Text style={styles.icono}>🌱</Text>
 
                     <View style={styles.textoPresentacion}>
+
                         <Text style={styles.tituloPresentacion}>
                             Crecimiento
                         </Text>
 
                         <Text style={styles.descripcion}>
-                            Monitorea la altura y el desarrollo de tus plantas
-                            en el invernadero.
+                            Monitorea el desarrollo de las plantas
+                            en ambos lados del invernadero.
                         </Text>
+
                     </View>
+
                 </View>
 
                 <View style={styles.card}>
+
                     <Text style={styles.titulo}>
-                        Medición de altura
+                        Estado de las plantas
                     </Text>
 
                     <Text style={[
                         styles.estado,
                         conectado ? styles.conectado : styles.desconectado
                     ]}>
-                        {conectado ? '🟢 Conectado' : '🔴 Desconectado'}
+                        {conectado ? '🟢 Sensor conectado' : '🔴 Sensor desconectado'}
                     </Text>
 
-                    <View style={styles.sensorContainer}>
+                    <View style={[
+                        styles.mensajeCrecimiento,
+                        plantaLista && styles.mensajeLista
+                    ]}>
 
-                        <Text style={styles.iconoSensor}>🌿</Text>
-
-                        <Text style={styles.valorSensor}>
-                            {sensorValue.toFixed(1)}
+                        <Text style={styles.iconoCrecimiento}>
+                            {plantaLista ? '🌾' : '🌱'}
                         </Text>
 
-                        <Text style={styles.unidad}>cm</Text>
+                        <Text style={styles.tituloCrecimiento}>
+                            {plantaLista
+                                ? '¡Planta alta lista para cortar!'
+                                : 'Las plantas siguen en crecimiento'}
+                        </Text>
 
-                        <Text style={styles.unidadSensor}>
-                            Altura actual de la planta
+                        <Text style={styles.descripcionCrecimiento}>
+                            {plantaLista
+                                ? 'El sensor ha detectado que una de las plantas alcanzó la zona de corte.'
+                                : 'Las plantas todavía no han llegado a la zona de corte. Seguiremos monitoreando su crecimiento.'}
                         </Text>
 
                     </View>
-                </View>
 
-                <View style={styles.card}>
-                    <Text style={styles.titulo}>
-                        Seguimiento del crecimiento
-                    </Text>
+                    {/* LADO A Y LADO B */}
+                    <View style={styles.contenedorLados}>
 
-                    <View style={styles.informacion}>
-                        <Text style={styles.iconoInfo}>📏</Text>
+                        {/* LADO A */}
+                        <View style={[
+                            styles.tarjetaLado,
+                            ladoA && styles.tarjetaDetectada
+                        ]}>
 
-                        <View style={styles.textoInfo}>
-                            <Text style={styles.subtitulo}>
-                                Altura registrada
+                            <Text style={styles.iconoLado}>
+                                🌿
                             </Text>
 
-                            <Text style={styles.valorInfo}>
-                                {sensorValue.toFixed(1)} cm
+                            <Text style={styles.nombreLado}>
+                                LADO A
                             </Text>
+
+                            <Text style={styles.distanciaLado}>
+                                Aproximadamente 10 cm
+                            </Text>
+
+                            <View style={[
+                                styles.indicadorLado,
+                                ladoA ? styles.indicadorActivo : styles.indicadorInactivo
+                            ]} />
+
+                            <Text style={[
+                                styles.estadoLado,
+                                ladoA && styles.estadoLadoActivo
+                            ]}>
+                                {ladoA ? '¡Lista para cortar!' : 'En crecimiento'}
+                            </Text>
+
+                            {ladoA && (
+                                <Text style={styles.distanciaDetectada}>
+                                    Detectada a {sensorDistance?.toFixed(1)} cm
+                                </Text>
+                            )}
+
                         </View>
+
+                        {/* LADO B */}
+                        <View style={[
+                            styles.tarjetaLado,
+                            ladoB && styles.tarjetaDetectada
+                        ]}>
+
+                            <Text style={styles.iconoLado}>
+                                🌿
+                            </Text>
+
+                            <Text style={styles.nombreLado}>
+                                LADO B
+                            </Text>
+
+                            <Text style={styles.distanciaLado}>
+                                Aproximadamente 30 cm
+                            </Text>
+
+                            <View style={[
+                                styles.indicadorLado,
+                                ladoB ? styles.indicadorActivo : styles.indicadorInactivo
+                            ]} />
+
+                            <Text style={[
+                                styles.estadoLado,
+                                ladoB && styles.estadoLadoActivo
+                            ]}>
+                                {ladoB ? '¡Lista para cortar!' : 'En crecimiento'}
+                            </Text>
+
+                            {ladoB && (
+                                <Text style={styles.distanciaDetectada}>
+                                    Detectada a {sensorDistance?.toFixed(1)} cm
+                                </Text>
+                            )}
+
+                        </View>
+
                     </View>
 
-                    <Text style={styles.descripcionInfo}>
-                        Esta sección permite visualizar la altura actual
-                        de la planta y monitorear su desarrollo mediante
-                        las mediciones del sensor ultrasónico.
+                    <Text style={styles.notaSensor}>
+                        El sensor monitorea una distancia máxima de 40 cm
+                        para identificar cuándo una planta llega a la zona
+                        de corte.
                     </Text>
+
                 </View>
 
                 {/* PEDIDOS PENDIENTES */}
                 <View style={styles.card}>
+
                     <Text style={styles.titulo}>
                         Pedidos por recibir
                     </Text>
 
                     {comprasPendientes.length === 0 ? (
+
                         <View style={styles.registroPendiente}>
+
                             <Text style={styles.iconoRegistro}>📦</Text>
 
                             <Text style={styles.textoRegistro}>
                                 No hay pedidos pendientes de recibir.
                             </Text>
+
                         </View>
+
                     ) : (
+
                         comprasPendientes.map((compra) => (
+
                             <View key={compra.id} style={styles.pedidoItem}>
 
                                 <View style={styles.pedidoEncabezado}>
+
                                     <View style={styles.textoInfo}>
+
                                         <Text style={styles.nombreMaterial}>
                                             {obtenerNombreProducto(compra.productoId, compra.producto)}
                                         </Text>
@@ -398,34 +572,45 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                         <Text style={styles.cantidadMaterial}>
                                             Pedido: {compra.fecha}
                                         </Text>
+
                                     </View>
 
                                     <Text style={styles.iconoPedido}>🚚</Text>
+
                                 </View>
 
                                 <TouchableOpacity
                                     style={styles.botonRecibir}
                                     onPress={() => confirmarCompra(compra)}
                                 >
+
                                     <Text style={styles.textoBotonRecibir}>
                                         Compra recibida
                                     </Text>
+
                                 </TouchableOpacity>
 
                             </View>
+
                         ))
+
                     )}
+
                 </View>
 
+                {/* INVENTARIO */}
                 <View style={styles.card}>
+
                     <Text style={styles.titulo}>
                         Materiales e inventario
                     </Text>
 
                     <View style={styles.informacion}>
+
                         <Text style={styles.iconoInfo}>📦</Text>
 
                         <View style={styles.textoInfo}>
+
                             <Text style={styles.subtitulo}>
                                 Materiales disponibles
                             </Text>
@@ -433,18 +618,25 @@ export default function CrecimientoScreenUsu({ navigation }) {
                             <Text style={styles.valorInfo}>
                                 Inventario actual
                             </Text>
+
                         </View>
+
                     </View>
 
                     {inventario.length === 0 ? (
+
                         <Text style={styles.registroVacio}>
                             No hay materiales registrados en el inventario.
                         </Text>
+
                     ) : (
+
                         inventario.map((producto) => (
+
                             <View key={producto.id} style={styles.materialCompacto}>
 
                                 <View style={styles.materialEncabezado}>
+
                                     <Text style={styles.nombreMaterial}>
                                         {obtenerNombreProducto(producto.id, producto.nombre)}
                                     </Text>
@@ -452,9 +644,11 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                     <Text style={styles.stockMaterial}>
                                         Stock: {producto.cantidad}
                                     </Text>
+
                                 </View>
 
                                 <View style={styles.filaUso}>
+
                                     <TextInput
                                         style={styles.inputUso}
                                         placeholder="Cantidad"
@@ -471,20 +665,27 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                         disabled={Number(producto.cantidad) <= 0}
                                         onPress={() => usarMaterial(producto)}
                                     >
+
                                         <Text style={styles.textoBotonUsar}>
                                             Usar
                                         </Text>
+
                                     </TouchableOpacity>
+
                                 </View>
 
                                 {Number(producto.cantidad) <= 0 && (
+
                                     <Text style={styles.sinStock}>
                                         Sin existencias disponibles
                                     </Text>
+
                                 )}
 
                             </View>
+
                         ))
+
                     )}
 
                     <View style={styles.separadorMaterial} />
@@ -494,18 +695,26 @@ export default function CrecimientoScreenUsu({ navigation }) {
                     </Text>
 
                     {materialesUtilizados.length === 0 ? (
+
                         <View style={styles.registroPendiente}>
+
                             <Text style={styles.iconoRegistro}>📝</Text>
 
                             <Text style={styles.textoRegistro}>
                                 Aquí aparecerán los materiales utilizados
                                 y las cantidades registradas.
                             </Text>
+
                         </View>
+
                     ) : (
+
                         materialesUtilizados.map((registro) => (
+
                             <View key={registro.id} style={styles.registroMaterial}>
+
                                 <View style={styles.textoInfo}>
+
                                     <Text style={styles.nombreMaterial}>
                                         {obtenerNombreProducto(registro.productoId, registro.producto)}
                                     </Text>
@@ -513,20 +722,27 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                     <Text style={styles.cantidadMaterial}>
                                         {new Date(registro.fecha).toLocaleString('es-GT')}
                                     </Text>
+
                                 </View>
 
                                 <Text style={styles.cantidadValor}>
                                     -{registro.cantidad}
                                 </Text>
+
                             </View>
+
                         ))
+
                     )}
 
                 </View>
 
             </ScrollView>
+
         </SafeAreaView>
+
     );
+
 }
 
 const styles = StyleSheet.create({
@@ -605,7 +821,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         padding: 10,
         borderRadius: 10,
-        marginBottom: 20,
+        marginBottom: 15,
         fontWeight: '500',
     },
 
@@ -619,34 +835,122 @@ const styles = StyleSheet.create({
         color: '#8A5140',
     },
 
-    sensorContainer: {
+    mensajeCrecimiento: {
+        backgroundColor: '#EAF0E5',
+        borderRadius: 12,
+        padding: 17,
         alignItems: 'center',
-        backgroundColor: '#F3E9DC',
-        borderRadius: 15,
-        padding: 20,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: '#C9D6BE',
     },
 
-    iconoSensor: {
-        fontSize: 45,
-        marginBottom: 5,
+    mensajeLista: {
+        backgroundColor: '#F5EBD8',
+        borderColor: '#D9B978',
     },
 
-    valorSensor: {
-        fontSize: 60,
+    iconoCrecimiento: {
+        fontSize: 38,
+        marginBottom: 8,
+    },
+
+    tituloCrecimiento: {
+        color: '#53634A',
+        fontSize: 18,
         fontWeight: 'bold',
-        color: '#8B6F47',
+        textAlign: 'center',
     },
 
-    unidad: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#8B6F47',
-    },
-
-    unidadSensor: {
-        fontSize: 14,
+    descripcionCrecimiento: {
         color: '#6B5142',
+        fontSize: 13,
+        lineHeight: 20,
+        textAlign: 'center',
         marginTop: 8,
+    },
+
+    contenedorLados: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
+
+    tarjetaLado: {
+        flex: 1,
+        backgroundColor: '#F8F4EF',
+        borderRadius: 12,
+        paddingVertical: 17,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
+
+    tarjetaDetectada: {
+        backgroundColor: '#EDF2E8',
+        borderColor: '#8B9D78',
+        borderWidth: 2,
+    },
+
+    iconoLado: {
+        fontSize: 32,
+        marginBottom: 7,
+    },
+
+    nombreLado: {
+        color: '#4A3328',
+        fontSize: 17,
+        fontWeight: 'bold',
+    },
+
+    distanciaLado: {
+        fontSize: 11,
+        color: '#8B6F47',
+        textAlign: 'center',
+        marginTop: 5,
+    },
+
+    indicadorLado: {
+        width: 15,
+        height: 15,
+        borderRadius: 20,
+        marginTop: 13,
+        marginBottom: 9,
+    },
+
+    indicadorActivo: {
+        backgroundColor: '#53634A',
+    },
+
+    indicadorInactivo: {
+        backgroundColor: '#C7BEB5',
+    },
+
+    estadoLado: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#8B6F47',
+        textAlign: 'center',
+    },
+
+    estadoLadoActivo: {
+        color: '#53634A',
+    },
+
+    distanciaDetectada: {
+        fontSize: 10,
+        color: '#53634A',
+        marginTop: 7,
+        textAlign: 'center',
+    },
+
+    notaSensor: {
+        fontSize: 12,
+        color: '#8B6F47',
+        textAlign: 'center',
+        lineHeight: 18,
+        marginTop: 17,
     },
 
     informacion: {
@@ -678,14 +982,7 @@ const styles = StyleSheet.create({
         color: '#8B6F47',
         marginTop: 4,
     },
-
-    descripcionInfo: {
-        fontSize: 14,
-        color: '#6B5142',
-        lineHeight: 22,
-        textAlign: 'justify',
-        marginTop: 15,
-    },
+    
 
     pedidoItem: {
         backgroundColor: '#F8F4EF',
