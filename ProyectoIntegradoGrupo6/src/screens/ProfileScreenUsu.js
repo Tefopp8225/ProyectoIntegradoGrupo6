@@ -410,10 +410,10 @@ const styles = StyleSheet.create({
     caja: {
         backgroundColor: '#FFFCF8',
         width: '100%',
-        maxWidth: 520,
+        maxWidth: '92%',
         borderRadius: 24,
         overflow: 'hidden',
-
+        marginTop:'15%',
         elevation: 6,
         shadowColor: '#382218',
         shadowOffset: { width: 0, height: 4 },

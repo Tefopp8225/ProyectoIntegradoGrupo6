@@ -12,9 +12,9 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 
-// CONFIGURACIÓN EXACTA DE PUERTOS COM
-const PUERTO_ARDUINO_RIEGO = 'COM6';      // Arduino 1: Solo Riego (Bomba y Humedad)
-const PUERTO_ARDUINO_SISTEMA = 'COM4';    // Arduino 2: Crecimiento, Temperatura, Servos, Ventilador y Luces
+// CONFIGURACIÓN DE PUERTOS COM
+const PUERTO_ARDUINO_RIEGO = 'COM4';      // Arduino 1: Riego, Humedad y Servo 1 (Pin 2)
+const PUERTO_ARDUINO_SISTEMA = 'COM5';    // Arduino 2: Crecimiento, Temperatura, Ventilador, Luces y Servo 2 (Pin 5)
 
 let serialPortRiego, serialPortSistema;
 
@@ -41,7 +41,7 @@ function registrarRegistro(tipo, nombre, valor) {
     console.log('[HISTORIAL]', registro);
 }
 
-// CONEXIÓN ARDUINO 1 (COM4) - Solo Riego y Sensores de Humedad
+// CONEXIÓN ARDUINO 1 (COM4) - Riego, Sensores de Humedad y Servo 1
 try {
     serialPortRiego = new SerialPort({ path: PUERTO_ARDUINO_RIEGO, baudRate: 9600 });
     const parserRiego = serialPortRiego.pipe(new ReadlineParser({ delimiter: '\n' }));
@@ -63,7 +63,7 @@ try {
     console.log('[ERROR] Arduino Riego:', error.message);
 }
 
-// CONEXIÓN ARDUINO 2 (COM5) - Crecimiento, Ambiente, Servos y Luces
+// CONEXIÓN ARDUINO 2 (COM5) - Crecimiento, Ambiente, Luces y Servo 2
 try {
     serialPortSistema = new SerialPort({ path: PUERTO_ARDUINO_SISTEMA, baudRate: 9600 });
     const parserSistema = serialPortSistema.pipe(new ReadlineParser({ delimiter: '\n' }));
@@ -129,22 +129,22 @@ io.on('connection', (socket) => {
         }
     });
 
-    // CONTROL DE TECHO / VENTANA - Servos (Envía comando a ambos Arduinos)
+    // CONTROL DE TECHO / VENTANA - Servos 360° (Envía comando a AMBOS Arduinos simultáneamente)
     socket.on('command_ventana', (data) => {
         console.log('[APP] Comando Ventana:', data);
         let cmd = (data.action === 'ABRIR') ? 'VENTANA_ABRIR\n' : 'VENTANA_CERRAR\n';
 
-        // Enviar a Arduino 2 (Sistema)
+        // Manda la orden al Arduino 2 (Sistema - Servo 2)
         if (serialPortSistema && serialPortSistema.isOpen) {
             serialPortSistema.write(cmd);
         }
-        // Enviar también a Arduino 1 (Riego) para que mueva su servo del pin 2 a la vez
+        // Manda la orden al Arduino 1 (Riego - Servo 1 en Pin 2)
         if (serialPortRiego && serialPortRiego.isOpen) {
             serialPortRiego.write(cmd);
         }
 
         io.emit('ventana_state', { abierta: data.action === 'ABRIR' });
-        registrarRegistro('Actuador', 'Techo / Ventana', data.action === 'ABRIR' ? 'Abierto' : 'Cerrado');
+        registrarRegistro('Actuador', 'Techo / Ventana (360°)', data.action === 'ABRIR' ? 'Abierto' : 'Cerrado');
     });
 
     // CONTROL DE LEDS (Envía comando a Arduino 2 - COM5)
@@ -183,8 +183,8 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('SERVER MULTI-ARDUINO INICIADO');
     console.log('========================================');
     console.log('Puerto Servidor:', PORT);
-    console.log('Arduino 1 (Riego en COM4):', PUERTO_ARDUINO_RIEGO);
-    console.log('Arduino 2 (Sistema en COM5):', PUERTO_ARDUINO_SISTEMA);
+    console.log('Arduino 1 (Riego + Servo 1 en COM4):', PUERTO_ARDUINO_RIEGO);
+    console.log('Arduino 2 (Sistema + Servo 2 en COM5):', PUERTO_ARDUINO_SISTEMA);
     console.log('========================================');
 });
 

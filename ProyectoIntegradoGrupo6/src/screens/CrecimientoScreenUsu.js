@@ -1,15 +1,55 @@
 
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
+
 import io from 'socket.io-client';
+import { initializeApp, getApps } from 'firebase/app';
+import {
+    getFirestore,
+    collection,
+    onSnapshot,
+    doc,
+    runTransaction
+} from 'firebase/firestore';
+
+import { firebaseConfig } from '../firebase/FirebaseConfig';
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const db = getFirestore(app);
+
+
+const PRODUCTOS_BASE = [
+    { id: '1', nombre: 'Tierra' },
+    { id: '2', nombre: 'Abono' },
+    { id: '3', nombre: 'Semillas' },
+    { id: '4', nombre: 'Herbicida' },
+    { id: '5', nombre: 'Fertilizante' }
+];
+
+const obtenerNombreProducto = (id, nombreGuardado = '') => {
+    const producto = PRODUCTOS_BASE.find(p => p.id === String(id));
+    return producto ? producto.nombre : (nombreGuardado || 'Producto desconocido');
+};
 
 const SERVER_URL = 'http://192.168.1.29:3000';
 
 export default function CrecimientoScreenUsu({ navigation }) {
 
     const [conectado, setConectado] = useState(false);
-    const [sensorValue, setSensorValue] = useState(0);
 
+    // Distancia detectada por el sensor ultrasónico
+    const [sensorDistance, setSensorDistance] = useState(null);
+
+    // Estado de los dos lados
+    const [ladoA, setLadoA] = useState(false);
+    const [ladoB, setLadoB] = useState(false);
+
+    const [inventario, setInventario] = useState([]);
+    const [cantidadesUso, setCantidadesUso] = useState({});
+    const [materialesUtilizados, setMaterialesUtilizados] = useState([]);
+    const [comprasPendientes, setComprasPendientes] = useState([]);
+
+    // CONEXIÓN CON EL SENSOR
     useEffect(() => {
         const nuevaConexion = io(SERVER_URL);
 
@@ -23,116 +63,522 @@ export default function CrecimientoScreenUsu({ navigation }) {
             console.log('Desconectado del servidor');
         });
 
-        nuevaConexion.on('sensor_data', (data) => {
-            const altura = parseFloat(data.value);
+        // Recibir distancia del sensor
+        nuevaConexion.on('plant_distance', (data) => {
 
-            if (Number.isFinite(altura)) {
-                setSensorValue(altura);
-                console.log(`Altura de la planta: ${altura} cm`);
+            const distancia = parseFloat(data.value);
+
+            if (!Number.isFinite(distancia)) {
+                return;
             }
+
+            setSensorDistance(distancia);
+
+            // Si no detecta nada o supera los 40 cm
+            if (distancia <= 0 || distancia > 40) {
+                setLadoA(false);
+                setLadoB(false);
+                return;
+            }
+
+            // LADO A: aproximadamente 10 cm
+            if (distancia >= 7 && distancia <= 13) {
+                setLadoA(true);
+                setLadoB(false);
+            }
+
+            // LADO B: aproximadamente 30 cm
+            else if (distancia >= 27 && distancia <= 33) {
+                setLadoA(false);
+                setLadoB(true);
+            }
+
+            // Si está dentro de 40 cm pero fuera de las zonas
+            else {
+                setLadoA(false);
+                setLadoB(false);
+            }
+
+            console.log('Distancia detectada:', distancia, 'cm');
         });
 
         return () => {
             nuevaConexion.disconnect();
         };
+
     }, []);
 
+    // CARGAR INVENTARIO EN TIEMPO REAL
+    useEffect(() => {
+
+        const cancelarInventario = onSnapshot(
+            collection(db, "inventario"),
+            (snap) => {
+
+                const lista = [];
+
+                snap.forEach((documento) => {
+                    lista.push({
+                        id: documento.id,
+                        ...documento.data()
+                    });
+                });
+
+                lista.sort((a, b) => Number(a.id) - Number(b.id));
+                setInventario(lista);
+
+            },
+            (error) => {
+                console.log("Error al cargar inventario:", error);
+                Alert.alert("Error", "No se pudo cargar el inventario.");
+            }
+        );
+
+        return () => cancelarInventario();
+
+    }, []);
+
+    // CARGAR REGISTRO DE MATERIALES UTILIZADOS
+    useEffect(() => {
+
+        const cancelarRegistro = onSnapshot(
+            collection(db, "materiales_utilizados"),
+            (snap) => {
+
+                const lista = [];
+
+                snap.forEach((documento) => {
+                    lista.push({
+                        id: documento.id,
+                        ...documento.data()
+                    });
+                });
+
+                lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                setMaterialesUtilizados(lista);
+
+            },
+            (error) => {
+                console.log("Error al cargar materiales utilizados:", error);
+            }
+        );
+
+        return () => cancelarRegistro();
+
+    }, []);
+
+    // CARGAR PEDIDOS PENDIENTES
+    useEffect(() => {
+
+        const cancelarCompras = onSnapshot(
+            collection(db, "compras"),
+            (snap) => {
+
+                const lista = [];
+
+                snap.forEach((documento) => {
+
+                    const compra = {
+                        id: documento.id,
+                        ...documento.data()
+                    };
+
+                    if (compra.estado === "En camino") {
+                        lista.push(compra);
+                    }
+
+                });
+
+                lista.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+                setComprasPendientes(lista);
+
+            },
+            (error) => {
+                console.log("Error al cargar pedidos:", error);
+                Alert.alert("Error", "No se pudieron cargar los pedidos.");
+            }
+        );
+
+        return () => cancelarCompras();
+
+    }, []);
+
+    const cambiarCantidadUso = (id, valor) => {
+
+        setCantidadesUso({
+            ...cantidadesUso,
+            [id]: valor
+        });
+
+    };
+
+    // CONFIRMAR RECEPCIÓN DE COMPRA
+    const confirmarCompra = async (compra) => {
+
+        if (!compra.productoId) {
+            Alert.alert(
+                "Error",
+                "Este pedido no tiene asociado un producto del inventario. Realiza un nuevo pedido desde el administrador."
+            );
+            return;
+        }
+
+        try {
+
+            await runTransaction(db, async (transaction) => {
+
+                const referenciaCompra = doc(db, "compras", compra.id);
+                const referenciaInventario = doc(db, "inventario", compra.productoId);
+
+
+                const documentoCompra = await transaction.get(referenciaCompra);
+                const documentoInventario = await transaction.get(referenciaInventario);
+
+                if (!documentoCompra.exists()) {
+                    throw new Error("El pedido ya no existe.");
+                }
+
+                if (documentoCompra.data().estado !== "En camino") {
+                    throw new Error("Este pedido ya fue recibido anteriormente.");
+                }
+
+                if (!documentoInventario.exists()) {
+                    throw new Error("El producto no existe en el inventario.");
+                }
+
+                const cantidadCompra = Number(documentoCompra.data().cantidad);
+                const cantidadActual = Number(documentoInventario.data().cantidad);
+
+                if (!Number.isInteger(cantidadCompra) || cantidadCompra <= 0) {
+                    throw new Error("La cantidad del pedido no es válida.");
+                }
+
+                if (!Number.isFinite(cantidadActual) || cantidadActual < 0) {
+                    throw new Error("La cantidad actual del inventario no es válida.");
+                }
+
+
+                transaction.update(referenciaInventario, {
+                    cantidad: cantidadActual + cantidadCompra
+                });
+
+
+
+                transaction.update(referenciaCompra, {
+                    estado: "Recibido",
+                    fechaRecepcion: new Date().toISOString()
+                });
+
+            });
+
+            Alert.alert(
+                "¡Compra recibida!",
+                `${obtenerNombreProducto(compra.productoId, compra.producto)}: ${compra.cantidad} unidades agregadas al inventario.`
+            );
+
+        } catch (error) {
+
+            console.log("Error al confirmar compra:", error);
+
+            Alert.alert(
+                "Error",
+                error.message || "No se pudo confirmar la compra."
+            );
+
+        }
+
+    };
+
+    // UTILIZAR MATERIAL DEL INVENTARIO
+    const usarMaterial = async (producto) => {
+
+        const cantidad = Number(cantidadesUso[producto.id]);
+
+        if (!Number.isInteger(cantidad) || cantidad <= 0) {
+            Alert.alert("Atención", "Escribe una cantidad válida.");
+            return;
+        }
+
+        try {
+
+            await runTransaction(db, async (transaction) => {
+
+                const referencia = doc(db, "inventario", producto.id);
+                const documento = await transaction.get(referencia);
+
+                if (!documento.exists()) {
+                    throw new Error("Este producto no existe en el inventario.");
+                }
+
+                const stockActual = Number(documento.data().cantidad);
+
+                if (!Number.isFinite(stockActual) || stockActual < 0) {
+                    throw new Error("La cantidad del inventario no es válida.");
+                }
+
+                if (cantidad > stockActual) {
+                    throw new Error("No hay suficiente cantidad disponible.");
+                }
+
+                transaction.update(referencia, {
+                    cantidad: stockActual - cantidad
+                });
+
+                const nuevoRegistro = doc(collection(db, "materiales_utilizados"));
+
+                transaction.set(nuevoRegistro, {
+                    producto: obtenerNombreProducto(producto.id, producto.nombre),
+                    productoId: producto.id,
+                    cantidad: cantidad,
+                    fecha: new Date().toISOString()
+                });
+
+            });
+
+            setCantidadesUso({
+                ...cantidadesUso,
+                [producto.id]: ''
+            });
+
+            Alert.alert(
+                "Material utilizado",
+                "Se descontó la cantidad del inventario correctamente."
+            );
+
+        } catch (error) {
+
+            console.log("Error al utilizar material:", error);
+
+            Alert.alert(
+                "Error",
+                error.message || "No se pudo utilizar el material."
+            );
+
+        }
+
+    };
+
+    // DETERMINAR SI ALGUNO DE LOS LADOS ESTÁ LISTO
+    const plantaLista = ladoA || ladoB;
+
     return (
+
         <SafeAreaView style={styles.areaSegura}>
+
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.contenidoScroll}
             >
 
                 <View style={styles.presentacion}>
+
                     <Text style={styles.icono}>🌱</Text>
 
                     <View style={styles.textoPresentacion}>
+
                         <Text style={styles.tituloPresentacion}>
                             Crecimiento
                         </Text>
 
                         <Text style={styles.descripcion}>
-                            Monitorea la altura y el desarrollo de tus plantas
-                            en el invernadero.
+                            Monitorea el desarrollo de las plantas
+                            en ambos lados del invernadero.
                         </Text>
+
                     </View>
+
                 </View>
 
                 <View style={styles.card}>
+
                     <Text style={styles.titulo}>
-                        Medición de altura
+                        Estado de las plantas
                     </Text>
 
                     <Text style={[
                         styles.estado,
                         conectado ? styles.conectado : styles.desconectado
                     ]}>
-                        {conectado ? '🟢 Conectado' : '🔴 Desconectado'}
+                        {conectado ? '🟢 Sensor conectado' : '🔴 Sensor desconectado'}
                     </Text>
 
-                    <View style={styles.sensorContainer}>
+                    <View style={[
+                        styles.mensajeCrecimiento,
+                        plantaLista && styles.mensajeLista
+                    ]}>
 
-                        <Text style={styles.iconoSensor}>🌿</Text>
-
-                        <Text style={styles.valorSensor}>
-                            {sensorValue.toFixed(1)}
+                        <Text style={styles.iconoCrecimiento}>
+                            {plantaLista ? '🌾' : '🌱'}
                         </Text>
 
-                        <Text style={styles.unidad}>
-                            cm
+                        <Text style={styles.tituloCrecimiento}>
+                            {plantaLista
+                                ? '¡Planta alta lista para cortar!'
+                                : 'Las plantas siguen en crecimiento'}
                         </Text>
 
-                        <Text style={styles.unidadSensor}>
-                            Altura actual de la planta
+                        <Text style={styles.descripcionCrecimiento}>
+                            {plantaLista
+                                ? 'El sensor ha detectado que una de las plantas alcanzó la zona de corte.'
+                                : 'Las plantas todavía no han llegado a la zona de corte. Seguiremos monitoreando su crecimiento.'}
                         </Text>
 
                     </View>
-                </View>
 
-                <View style={styles.card}>
-                    <Text style={styles.titulo}>
-                        Seguimiento del crecimiento
-                    </Text>
+                    {/* LADO A Y LADO B */}
+                    <View style={styles.contenedorLados}>
 
-                    <View style={styles.informacion}>
-                        <Text style={styles.iconoInfo}>📏</Text>
+                        {/* LADO A */}
+                        <View style={[
+                            styles.tarjetaLado,
+                            ladoA && styles.tarjetaDetectada
+                        ]}>
 
-                        <View style={styles.textoInfo}>
-                            <Text style={styles.subtitulo}>
-                                Altura registrada
+                            <Text style={styles.iconoLado}>
+                                🌿
                             </Text>
 
-                            <Text style={styles.valorInfo}>
-                                {sensorValue.toFixed(1)} cm
+                            <Text style={styles.nombreLado}>
+                                LADO A
                             </Text>
+
+
+                            <View style={[
+                                styles.indicadorLado,
+                                ladoA ? styles.indicadorActivo : styles.indicadorInactivo
+                            ]} />
+
+                            <Text style={[
+                                styles.estadoLado,
+                                ladoA && styles.estadoLadoActivo
+                            ]}>
+                                {ladoA ? '¡Lista para cortar!' : 'En crecimiento'}
+                            </Text>
+
+                            {ladoA && (
+                                <Text style={styles.distanciaDetectada}>
+                                    Detectada a {sensorDistance?.toFixed(1)} cm
+                                </Text>
+                            )}
+
                         </View>
-                    </View>
 
-                    <Text style={styles.descripcionInfo}>
-                        Esta sección permite visualizar la altura actual
-                        de la planta y monitorear su desarrollo mediante
-                        las mediciones del sensor ultrasónico.
-                    </Text>
+                        {/* LADO B */}
+                        <View style={[
+                            styles.tarjetaLado,
+                            ladoB && styles.tarjetaDetectada
+                        ]}>
+
+                            <Text style={styles.iconoLado}>
+                                🌿
+                            </Text>
+
+                            <Text style={styles.nombreLado}>
+                                LADO B
+                            </Text>
+
+
+                            <View style={[
+                                styles.indicadorLado,
+                                ladoB ? styles.indicadorActivo : styles.indicadorInactivo
+                            ]} />
+
+                            <Text style={[
+                                styles.estadoLado,
+                                ladoB && styles.estadoLadoActivo
+                            ]}>
+                                {ladoB ? '¡Lista para cortar!' : 'En crecimiento'}
+                            </Text>
+
+                            {ladoB && (
+                                <Text style={styles.distanciaDetectada}>
+                                    Detectada a {sensorDistance?.toFixed(1)} cm
+                                </Text>
+                            )}
+
+                        </View>
+
+                    </View>
+                    
+
                 </View>
 
+                {/* PEDIDOS PENDIENTES */}
                 <View style={styles.card}>
+
                     <Text style={styles.titulo}>
-                        ¿Cómo funciona?
+                        Pedidos por recibir
                     </Text>
 
-                    <Text style={styles.descripcionInfo}>
-                        El sensor ultrasónico se encarga de medir la
-                        distancia entre su posición y la parte superior
-                        de la planta. A partir de esta distancia se
-                        calcula la altura de la planta, permitiendo
-                        monitorear su crecimiento dentro del invernadero.
-                    </Text>
+                    {comprasPendientes.length === 0 ? (
+
+                        <View style={styles.registroPendiente}>
+
+                            <Text style={styles.iconoRegistro}>📦</Text>
+
+                            <Text style={styles.textoRegistro}>
+                                No hay pedidos pendientes de recibir.
+                            </Text>
+
+                        </View>
+
+                    ) : (
+
+                        comprasPendientes.map((compra) => (
+
+                            <View key={compra.id} style={styles.pedidoItem}>
+
+                                <View style={styles.pedidoEncabezado}>
+
+                                    <View style={styles.textoInfo}>
+
+                                        <Text style={styles.nombreMaterial}>
+                                            {obtenerNombreProducto(compra.productoId, compra.producto)}
+                                        </Text>
+
+                                        <Text style={styles.cantidadMaterial}>
+                                            Cantidad: {compra.cantidad}
+                                        </Text>
+
+                                        <Text style={styles.estadoPedido}>
+                                            Estado: En camino
+                                        </Text>
+
+                                        <Text style={styles.cantidadMaterial}>
+                                            Pedido: {compra.fecha}
+                                        </Text>
+
+                                    </View>
+
+                                    <Text style={styles.iconoPedido}>🚚</Text>
+
+                                </View>
+
+                                <TouchableOpacity
+                                    style={styles.botonRecibir}
+                                    onPress={() => confirmarCompra(compra)}
+                                >
+
+                                    <Text style={styles.textoBotonRecibir}>
+                                        Compra recibida
+                                    </Text>
+
+                                </TouchableOpacity>
+
+                            </View>
+
+                        ))
+
+                    )}
+
                 </View>
 
             </ScrollView>
+
         </SafeAreaView>
+
     );
+
 }
 
 const styles = StyleSheet.create({
@@ -211,7 +657,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         padding: 10,
         borderRadius: 10,
-        marginBottom: 20,
+        marginBottom: 15,
         fontWeight: '500',
     },
 
@@ -225,34 +671,122 @@ const styles = StyleSheet.create({
         color: '#8A5140',
     },
 
-    sensorContainer: {
+    mensajeCrecimiento: {
+        backgroundColor: '#EAF0E5',
+        borderRadius: 12,
+        padding: 17,
         alignItems: 'center',
-        backgroundColor: '#F3E9DC',
-        borderRadius: 15,
-        padding: 20,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: '#C9D6BE',
     },
 
-    iconoSensor: {
-        fontSize: 45,
-        marginBottom: 5,
+    mensajeLista: {
+        backgroundColor: '#F5EBD8',
+        borderColor: '#D9B978',
     },
 
-    valorSensor: {
-        fontSize: 60,
+    iconoCrecimiento: {
+        fontSize: 38,
+        marginBottom: 8,
+    },
+
+    tituloCrecimiento: {
+        color: '#53634A',
+        fontSize: 18,
         fontWeight: 'bold',
-        color: '#8B6F47',
+        textAlign: 'center',
     },
 
-    unidad: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#8B6F47',
-    },
-
-    unidadSensor: {
-        fontSize: 14,
+    descripcionCrecimiento: {
         color: '#6B5142',
+        fontSize: 13,
+        lineHeight: 20,
+        textAlign: 'center',
         marginTop: 8,
+    },
+
+    contenedorLados: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
+
+    tarjetaLado: {
+        flex: 1,
+        backgroundColor: '#F8F4EF',
+        borderRadius: 12,
+        paddingVertical: 17,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
+
+    tarjetaDetectada: {
+        backgroundColor: '#EDF2E8',
+        borderColor: '#8B9D78',
+        borderWidth: 2,
+    },
+
+    iconoLado: {
+        fontSize: 32,
+        marginBottom: 7,
+    },
+
+    nombreLado: {
+        color: '#4A3328',
+        fontSize: 17,
+        fontWeight: 'bold',
+    },
+
+    distanciaLado: {
+        fontSize: 11,
+        color: '#8B6F47',
+        textAlign: 'center',
+        marginTop: 5,
+    },
+
+    indicadorLado: {
+        width: 15,
+        height: 15,
+        borderRadius: 20,
+        marginTop: 13,
+        marginBottom: 9,
+    },
+
+    indicadorActivo: {
+        backgroundColor: '#53634A',
+    },
+
+    indicadorInactivo: {
+        backgroundColor: '#C7BEB5',
+    },
+
+    estadoLado: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#8B6F47',
+        textAlign: 'center',
+    },
+
+    estadoLadoActivo: {
+        color: '#53634A',
+    },
+
+    distanciaDetectada: {
+        fontSize: 10,
+        color: '#53634A',
+        marginTop: 7,
+        textAlign: 'center',
+    },
+
+    notaSensor: {
+        fontSize: 12,
+        color: '#8B6F47',
+        textAlign: 'center',
+        lineHeight: 18,
+        marginTop: 17,
     },
 
     informacion: {
@@ -284,13 +818,15 @@ const styles = StyleSheet.create({
         color: '#8B6F47',
         marginTop: 4,
     },
+    
 
-    descripcionInfo: {
-        fontSize: 14,
-        color: '#6B5142',
-        lineHeight: 22,
-        textAlign: 'justify',
-        marginTop: 15,
+    pedidoItem: {
+        backgroundColor: '#F8F4EF',
+        padding: 13,
+        borderRadius: 10,
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
     },
 
 });

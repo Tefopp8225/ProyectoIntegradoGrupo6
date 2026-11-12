@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     contenido: {
         paddingBottom: 30,
         width: '100%',
-        maxWidth: 650,
+        maxWidth: '93%',
         alignSelf: 'center',
     },
     encabezado: {
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.25,
         shadowRadius: 6,
-        marginHorizontal: 16,
+        marginHorizontal: 13,
         marginTop: 35,
         marginBottom: 14,
         borderWidth: 1,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
         padding: 20, 
         width: '93%', 
         alignSelf: 'center',
-        maxWidth: 550, 
+        maxWidth: '92%', 
         marginBottom: 16, 
         elevation: 3, 
         borderWidth: 1, 
