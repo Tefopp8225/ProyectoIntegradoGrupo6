@@ -1,6 +1,4 @@
-//Servidor de prueba
-// 1. IMPORTAR LIBRERIAS
-
+// Servidor Principal - Proyecto Integrado Grupo 6
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -9,7 +7,7 @@ const { ReadlineParser } = require('@serialport/parser-readline');
 const cors = require('cors');
 
 
-// 2. CREAR SERVIDOR
+
 
 const app = express();
 const server = http.createServer(app);
@@ -17,39 +15,22 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 
+// CONFIGURACIÓN DE PUERTOS COM
+const PUERTO_ARDUINO_RIEGO = 'COM4';      // Arduino 1: Riego, Humedad y Servo 1 (Pin 2)
+const PUERTO_ARDUINO_SISTEMA = 'COM5';    // Arduino 2: Crecimiento, Temperatura, Ventilador, Luces y Servo 2 (Pin 5)
 
-// 3. CONFIGURAR PUERTO SERIAL
+let serialPortRiego, serialPortSistema;
 
-const PUERTO_ARDUINO = 'COM5';
-
-let serialPort;
-
-try {
-
-    serialPort = new SerialPort({
-        path: PUERTO_ARDUINO,
-        baudRate: 9600
-    });
-
-    console.log('[OK] Conectando al Arduino...');
-
-} catch (error) {
-
-    console.log('[ERROR] Error al conectar:', error.message);
-
-}
-
-// 4. ESTADO DE LOS SENSORES Y HISTORIAL
-
-let sensorValue = 0;
-
-let distanciaValue = 0;
-
-let zonaAnterior = 'NINGUNA';
+// ESTADO DE LOS SENSORES E HISTORIAL
+let alturaValue = 0;
+let sensor1HumedadValue = 0;
+let sensor2HumedadValue = 0;
+let temperaturaValue = 0;
+let ldrValue = 0;
 
 let historial = [];
 
-// FUNCION PARA GUARDAR REGISTROS
+
 
 function registrarRegistro(tipo, nombre, valor) {
 
@@ -62,248 +43,144 @@ function registrarRegistro(tipo, nombre, valor) {
     };
 
     historial.unshift(registro);
-
-    // Mantener solamente los últimos 100 registros
-    if (historial.length > 100) {
-        historial.pop();
-    }
-
-    // Enviar el nuevo registro a la aplicación
+    if (historial.length > 100) historial.pop();
     io.emit('historial_update', registro);
 
     console.log('[HISTORIAL]', registro);
 
 }
 
-// IDENTIFICAR ZONA DEL SENSOR ULTRASONICO
-
-function identificarZona(distancia) {
-
-    if (distancia >= 7 && distancia <= 13) {
-
-        return 'A';
-
-    }
-
-    if (distancia >= 27 && distancia <= 33) {
-        return 'B';
-
-    }
-    return 'NINGUNA';
-
-}
-
-// 5. LEER DATOS DEL ARDUINO
-
-if (serialPort) {
-
-    const parser = serialPort.pipe(
-        new ReadlineParser({ delimiter: '\n' })
-    );
-
-
-    parser.on('data', (line) => {
-
+// CONEXIÓN ARDUINO 1 (COM4) - Riego, Sensores de Humedad y Servo 1
+try {
+    serialPortRiego = new SerialPort({ path: PUERTO_ARDUINO_RIEGO, baudRate: 9600 });
+    const parserRiego = serialPortRiego.pipe(new ReadlineParser({ delimiter: '\n' }));
+    
+    parserRiego.on('data', (line) => {
         line = line.trim();
+        console.log('[ARDUINO 1 - Riego]', line);
 
-        console.log('[ARDUINO]', line);
-
-
-        // SENSOR DE HUMEDAD
-
-        if (line.startsWith('SENSOR:')) {
-
-            sensorValue = parseFloat(line.split(':')[1]);
-
-            if (Number.isFinite(sensorValue)) {
-
-                io.emit('sensor_data', {
-                    value: sensorValue
-                });
-
-                registrarRegistro(
-                    'Sensor',
-                    'Sensor de humedad',
-                    sensorValue
-                );
-
-            }
-
+        if (line.startsWith('SENSOR1_HUMEDAD:')) {
+            sensor1HumedadValue = parseFloat(line.split(':')[1]);
+            io.emit('sensor1_humedad_data', { value: sensor1HumedadValue });
+        } else if (line.startsWith('SENSOR2_HUMEDAD:')) {
+            sensor2HumedadValue = parseFloat(line.split(':')[1]);
+            io.emit('sensor2_humedad_data', { value: sensor2HumedadValue });
         }
-
-        // SENSOR ULTRASONICO - CRECIMIENTO
-
-        if (line.startsWith('DISTANCIA:')) {
-
-            distanciaValue = parseFloat(line.split(':')[1]);
-
-            if (Number.isFinite(distanciaValue)) {
-
-                let zonaActual = identificarZona(distanciaValue);
-
-                console.log(
-                    '[CRECIMIENTO] Distancia:',
-                    distanciaValue,
-                    'cm - Zona:',
-                    zonaActual
-                );
-
-                // Enviar distancia a la aplicación
-                io.emit('plant_distance', {
-                    value: distanciaValue,
-                    zona: zonaActual
-                });
-
-                // Registrar solamente cuando entra a una zona nueva
-                if (zonaActual !== zonaAnterior) {
-
-                    if (zonaActual === 'A') {
-
-                        registrarRegistro(
-                            'Sensor',
-                            'Sensor ultrasónico - Lado A',
-                            distanciaValue.toFixed(1) + ' cm'
-                        );
-
-                    } else if (zonaActual === 'B') {
-
-                        registrarRegistro(
-                            'Sensor',
-                            'Sensor ultrasónico - Lado B',
-                            distanciaValue.toFixed(1) + ' cm'
-                        );
-
-                    }
-
-                    zonaAnterior = zonaActual;
-
-                }
-
-            }
-
-        }
-
     });
-
-
-    // ERROR DEL PUERTO SERIAL
-
-    serialPort.on('error', (error) => {
-
-        console.log('[ERROR] Error en el puerto:', error.message);
-
-    });
-
-
-    // PUERTO ABIERTO
-
-    serialPort.on('open', () => {
-
-        console.log('[OK] Arduino conectado en:', PUERTO_ARDUINO);
-
-    });
-
+    console.log('[OK] Conectado a Arduino de Riego en:', PUERTO_ARDUINO_RIEGO);
+} catch (error) {
+    console.log('[ERROR] Arduino Riego:', error.message);
 }
 
-// 6. MANEJAR CONEXIONES DE LA APP
+// CONEXIÓN ARDUINO 2 (COM5) - Crecimiento, Ambiente, Luces y Servo 2
+try {
+    serialPortSistema = new SerialPort({ path: PUERTO_ARDUINO_SISTEMA, baudRate: 9600 });
+    const parserSistema = serialPortSistema.pipe(new ReadlineParser({ delimiter: '\n' }));
 
+    parserSistema.on('data', (line) => {
+        line = line.trim();
+        console.log('[ARDUINO 2 - Sistema]', line);
+
+        if (line.startsWith('ALTURA:')) {
+            alturaValue = parseFloat(line.split(':')[1]);
+            if (Number.isFinite(alturaValue)) {
+                io.emit('sensor_data', { value: alturaValue });
+                registrarRegistro('Sensor', 'Sensor ultrasónico', alturaValue.toFixed(1) + ' cm');
+            }
+        } else if (line.startsWith('SENSOR_TEMPERATURA:')) {
+            temperaturaValue = parseFloat(line.split(':')[1]);
+            io.emit('temperatura_data', { value: temperaturaValue });
+        } else if (line.startsWith('LDR_VALOR:')) {
+            ldrValue = parseFloat(line.split(':')[1]);
+        }
+    });
+    console.log('[OK] Conectado a Arduino del Sistema en:', PUERTO_ARDUINO_SISTEMA);
+} catch (error) {
+    console.log('[ERROR] Arduino Sistema:', error.message);
+}
+
+// MANEJO DE SOCKETS CON LA APLICACIÓN REACT NATIVE
 io.on('connection', (socket) => {
 
     console.log('[APP] App conectada:', socket.id);
 
-
-    // ENVIAR HISTORIAL AL CONECTARSE
-
+    // Enviar estados iniciales al conectar la app
     socket.emit('historial_data', historial);
+    socket.emit('sensor_data', { value: alturaValue });
+    socket.emit('sensor1_humedad_data', { value: sensor1HumedadValue });
+    socket.emit('sensor2_humedad_data', { value: sensor2HumedadValue });
+    socket.emit('temperatura_data', { value: temperaturaValue });
 
-    // ENVIAR HUMEDAD ACTUAL
-
-    socket.emit('sensor_data', {
-        value: sensorValue
+    // CONTROL DE BOMBA DE AGUA (Envía comando a Arduino 1 - COM4)
+    socket.on('command_bomba', (data) => {
+        console.log('[APP] Comando Bomba:', data);
+        if (serialPortRiego && serialPortRiego.isOpen) {
+            let cmd = (data.action === 'ON') ? 'BOMBA_ON\n' : 'BOMBA_OFF\n';
+            serialPortRiego.write(cmd, (err) => {
+                if (!err) {
+                    io.emit('bomba_state', { encendida: data.action === 'ON' });
+                    registrarRegistro('Actuador', 'Bomba de Agua', data.action === 'ON' ? 'Encendido' : 'Apagado');
+                }
+            });
+        }
     });
 
-    // ENVIAR DISTANCIA ACTUAL DEL ULTRASONICO
-
-    socket.emit('plant_distance', {
-        value: distanciaValue,
-        zona: identificarZona(distanciaValue)
+    // CONTROL DE VENTILADOR (Envía comando a Arduino 2 - COM5)
+    socket.on('command_ventilador', (data) => {
+        console.log('[APP] Comando Ventilador:', data);
+        if (serialPortSistema && serialPortSistema.isOpen) {
+            let cmd = (data.action === 'ON') ? 'VENTILADOR_ON\n' : 'VENTILADOR_OFF\n';
+            serialPortSistema.write(cmd, (err) => {
+                if (!err) {
+                    io.emit('ventilador_state', { encendido: data.action === 'ON' });
+                    registrarRegistro('Actuador', 'Ventilador', data.action === 'ON' ? 'Encendido' : 'Apagado');
+                }
+            });
+        }
     });
 
+    // CONTROL DE TECHO / VENTANA - Servos 360° (Envía comando a AMBOS Arduinos simultáneamente)
+    socket.on('command_ventana', (data) => {
+        console.log('[APP] Comando Ventana:', data);
+        let cmd = (data.action === 'ABRIR') ? 'VENTANA_ABRIR\n' : 'VENTANA_CERRAR\n';
 
-    // CONTROL DE LED
+        // Manda la orden al Arduino 2 (Sistema - Servo 2)
+        if (serialPortSistema && serialPortSistema.isOpen) {
+            serialPortSistema.write(cmd);
+        }
+        // Manda la orden al Arduino 1 (Riego - Servo 1 en Pin 2)
+        if (serialPortRiego && serialPortRiego.isOpen) {
+            serialPortRiego.write(cmd);
+        }
 
+        io.emit('ventana_state', { abierta: data.action === 'ABRIR' });
+        registrarRegistro('Actuador', 'Techo / Ventana (360°)', data.action === 'ABRIR' ? 'Abierto' : 'Cerrado');
+    });
+
+    // CONTROL DE LEDS (Envía comando a Arduino 2 - COM5)
     socket.on('command_led', (data) => {
-
-        console.log('[APP] Comando:', data);
-
-        if (!data || !data.led || !data.action) {
-
-            console.log('[WARN] Comando invalido:', data);
-
-            return;
-        }
-
-        if (data.action !== 'ON' && data.action !== 'OFF') {
-
-            console.log('[WARN] Accion invalida:', data.action);
-
-            return;
-        }
-
-        if (serialPort && serialPort.isOpen) {
-
-            let comando;
-            let nombreActuador;
-
-            if (data.led === 1) {
-
-                comando = 'LED1_' + data.action + '\n';
-                nombreActuador = 'LED 1';
-
+        console.log('[APP] Comando LED:', data);
+        if (serialPortSistema && serialPortSistema.isOpen) {
+            let comando = '';
+            let nombre = '';
+            if (data.led === 'sol') {
+                comando = data.action === 'ON' ? 'LEDSOL_ON\n' : 'LEDSOL_OFF\n';
+                nombre = 'LED Sol';
+            } else if (data.led === 1) {
+                comando = data.action === 'ON' ? 'LED1Calle_ON\n' : 'LED1Calle_OFF\n';
+                nombre = 'LED Calle 1';
             } else if (data.led === 2) {
-
-                comando = 'LED2_' + data.action + '\n';
-                nombreActuador = 'LED 2';
-
-            } else {
-
-                console.log('[WARN] LED no valido:', data.led);
-
-                return;
+                comando = data.action === 'ON' ? 'LED2Calle_ON\n' : 'LED2Calle_OFF\n';
+                nombre = 'LED Calle 2';
             }
 
-            serialPort.write(comando, (error) => {
-
-                if (error) {
-
-                    console.log('[ERROR] No se pudo enviar el comando:', error.message);
-
-                } else {
-
-                    console.log('[SEND] Enviando:', comando.trim());
-
-                    registrarRegistro(
-                        'Actuador',
-                        nombreActuador,
-                        data.action === 'ON' ? 'Encendido' : 'Apagado'
-                    );
-
+            serialPortSistema.write(comando, (err) => {
+                if (!err) {
+                    registrarRegistro('Actuador', nombre, data.action === 'ON' ? 'Encendido' : 'Apagado');
                 }
-
             });
-
-        } else {
-
-            console.log('[WARN] Arduino no conectado');
-
-            socket.emit('error', {
-                message: 'Arduino no conectado'
-            });
-
         }
-
     });
-
 
     socket.on('disconnect', () => {
 
@@ -313,28 +190,20 @@ io.on('connection', (socket) => {
 
 });
 
-// 7. INICIAR SERVIDOR
+
 
 const PORT = 3000;
 
 server.listen(PORT, '0.0.0.0', () => {
 
     console.log('========================================');
-    console.log('SERVER ARDUINO INICIADO');
+    console.log('SERVER MULTI-ARDUINO INICIADO');
     console.log('========================================');
-    console.log('Puerto:', PORT);
-    console.log('Arduino:', PUERTO_ARDUINO);
-    console.log('Historial activado');
-
+    console.log('Puerto Servidor:', PORT);
+    console.log('Arduino 1 (Riego + Servo 1 en COM4):', PUERTO_ARDUINO_RIEGO);
+    console.log('Arduino 2 (Sistema + Servo 2 en COM5):', PUERTO_ARDUINO_SISTEMA);
     console.log('========================================');
 
-});
-
-// 8. MANEJAR ERRORES GENERALES
-
-process.on('uncaughtException', (error) => {
-
-    console.log('[ERROR] Error inesperado:', error.message);
 
 });
 
@@ -342,13 +211,8 @@ process.on('uncaughtException', (error) => {
 process.on('SIGINT', () => {
 
     console.log('\n[STOP] Servidor detenido');
-
-    if (serialPort && serialPort.isOpen) {
-
-        serialPort.close();
-
-    }
-
+    if (serialPortRiego && serialPortRiego.isOpen) serialPortRiego.close();
+    if (serialPortSistema && serialPortSistema.isOpen) serialPortSistema.close();
     process.exit();
 
 });

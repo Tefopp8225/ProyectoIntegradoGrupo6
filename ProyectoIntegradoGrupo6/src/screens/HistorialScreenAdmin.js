@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View,Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import io from 'socket.io-client';
 
 const SERVER_URL = 'http://192.168.1.26:3000';
@@ -28,7 +28,9 @@ export default function HistorialScreenAdmin({ navigation }) {
         // RECIBIR HISTORIAL COMPLETO
 
         nuevaConexion.on('historial_data', (data) => {
+
             setHistorial(data);
+
         });
 
         // RECIBIR NUEVOS REGISTROS
@@ -37,22 +39,27 @@ export default function HistorialScreenAdmin({ navigation }) {
 
             setHistorial((historialAnterior) => {
 
-                // Evitar registros duplicados
-                if (historialAnterior.some((registro) => registro.id === data.id)) {
+                // EVITAR REGISTROS DUPLICADOS
+
+                if (historialAnterior.some((registro) =>
+                    registro.id === data.id
+                )) {
                     return historialAnterior;
                 }
 
                 return [
                     data,
                     ...historialAnterior
-                ];
+                ].slice(0, 100);
 
             });
 
         });
 
         return () => {
+
             nuevaConexion.disconnect();
+
         };
 
     }, []);
@@ -69,23 +76,43 @@ export default function HistorialScreenAdmin({ navigation }) {
 
     });
 
-    // OBTENER EL ULTIMO REGISTRO DE CADA ELEMENTO
+    // OBTENER EL ULTIMO REGISTRO DE UN ELEMENTO
 
     const obtenerUltimo = (nombre) => {
 
-        return historial.find((registro) => registro.nombre === nombre);
+        return historial.find((registro) =>
+            registro.nombre === nombre
+        );
 
     };
 
-    const humedad = obtenerUltimo('Sensor de humedad');
+    // OBTENER TODOS LOS SENSORES REGISTRADOS
 
-    const ladoA = obtenerUltimo('Sensor ultrasónico - Lado A');
+    const sensores = historial.filter((registro) =>
+        registro.tipo === 'Sensor'
+    );
 
-    const ladoB = obtenerUltimo('Sensor ultrasónico - Lado B');
+    const actuadores = historial.filter((registro) =>
+        registro.tipo === 'Actuador'
+    );
 
-    const led1 = obtenerUltimo('LED 1');
+    // OBTENER LOS ULTIMOS REGISTROS DE CADA SENSOR
 
-    const led2 = obtenerUltimo('LED 2');
+    const ultimosSensores = sensores.filter((registro, index, lista) =>
+        lista.findIndex((elemento) =>
+            elemento.nombre === registro.nombre
+        ) === index
+    );
+
+    // OBTENER LOS ULTIMOS REGISTROS DE CADA ACTUADOR
+
+    const ultimosActuadores = actuadores.filter((registro, index, lista) =>
+        lista.findIndex((elemento) =>
+            elemento.nombre === registro.nombre
+        ) === index
+    );
+
+    // MOSTRAR VALOR
 
     const mostrarValor = (registro) => {
 
@@ -97,8 +124,95 @@ export default function HistorialScreenAdmin({ navigation }) {
 
     };
 
+    // MOSTRAR FECHA
+
     const mostrarFecha = (fecha) => {
+
+        if (!fecha) {
+            return 'Fecha no disponible';
+        }
+
         return new Date(fecha).toLocaleString('es-GT');
+
+    };
+
+    // IDENTIFICAR ICONO
+
+    const obtenerIcono = (registro) => {
+
+        if (registro.tipo === 'Sensor') {
+
+            if (registro.nombre.includes('ultrasónico')) {
+                return '📏';
+            }
+
+            if (registro.nombre.includes('humedad')) {
+                return '💧';
+            }
+
+            if (registro.nombre.includes('Temperatura')) {
+                return '🌡️';
+            }
+
+            return '📡';
+
+        }
+
+        if (registro.nombre.includes('Bomba')) {
+            return '💧';
+        }
+
+        if (registro.nombre.includes('Ventilador')) {
+            return '🌀';
+        }
+
+        if (registro.nombre.includes('Ventana')) {
+            return '🏠';
+        }
+
+        if (registro.nombre.includes('LED')) {
+            return '💡';
+        }
+
+        return '⚙️';
+
+    };
+
+    // MOSTRAR ELEMENTO DEL HISTORIAL
+
+    const mostrarElemento = (registro) => {
+
+        return (
+
+            <View
+                style={styles.elemento}
+                key={registro.id}
+            >
+
+                <View style={styles.elementoEncabezado}>
+
+                    <Text style={styles.iconoElemento}>
+                        {obtenerIcono(registro)}
+                    </Text>
+
+                    <Text style={styles.nombreElemento}>
+                        {registro.nombre}
+                    </Text>
+
+                </View>
+
+                <Text style={styles.valorElemento}>
+                    {registro.valor}
+                </Text>
+
+                <Text style={styles.fechaElemento}>
+                    {mostrarFecha(registro.fecha)}
+                </Text>
+
+            </View>
+
+        );
+
     };
 
     return (
@@ -143,14 +257,18 @@ export default function HistorialScreenAdmin({ navigation }) {
                         styles.estado,
                         conectado ? styles.conectado : styles.desconectado
                     ]}>
+
                         {conectado ? '🟢 Conectado' : '🔴 Desconectado'}
+
                     </Text>
 
                     <View style={styles.resumen}>
 
                         <View style={styles.resumenItem}>
 
-                            <Text style={styles.iconoResumen}>📊</Text>
+                            <Text style={styles.iconoResumen}>
+                                📊
+                            </Text>
 
                             <Text style={styles.valorResumen}>
                                 {historial.length}
@@ -164,10 +282,12 @@ export default function HistorialScreenAdmin({ navigation }) {
 
                         <View style={styles.resumenItem}>
 
-                            <Text style={styles.iconoResumen}>📡</Text>
+                            <Text style={styles.iconoResumen}>
+                                📡
+                            </Text>
 
                             <Text style={styles.valorResumen}>
-                                {historial.filter((registro) => registro.tipo === 'Sensor').length}
+                                {sensores.length}
                             </Text>
 
                             <Text style={styles.textoResumen}>
@@ -178,10 +298,12 @@ export default function HistorialScreenAdmin({ navigation }) {
 
                         <View style={styles.resumenItem}>
 
-                            <Text style={styles.iconoResumen}>⚙️</Text>
+                            <Text style={styles.iconoResumen}>
+                                ⚙️
+                            </Text>
 
                             <Text style={styles.valorResumen}>
-                                {historial.filter((registro) => registro.tipo === 'Actuador').length}
+                                {actuadores.length}
                             </Text>
 
                             <Text style={styles.textoResumen}>
@@ -202,65 +324,32 @@ export default function HistorialScreenAdmin({ navigation }) {
                         Sensores del invernadero
                     </Text>
 
-                    <View style={styles.elemento}>
+                    {ultimosSensores.length === 0 ? (
 
-                        <View style={styles.elementoEncabezado}>
-                            <Text style={styles.iconoElemento}>💧</Text>
+                        <View style={styles.sinRegistros}>
 
-                            <Text style={styles.nombreElemento}>
-                                Sensor de humedad
+                            <Text style={styles.iconoVacio}>
+                                📡
                             </Text>
+
+                            <Text style={styles.textoVacio}>
+                                Sin registros de sensores
+                            </Text>
+
+                            <Text style={styles.descripcionVacio}>
+                                Los sensores aparecerán aquí cuando
+                                el servidor reciba información.
+                            </Text>
+
                         </View>
 
-                        <Text style={styles.valorElemento}>
-                            {mostrarValor(humedad)}
-                        </Text>
+                    ) : (
 
-                        <Text style={styles.fechaElemento}>
-                            {humedad ? mostrarFecha(humedad.fecha) : 'Esperando información'}
-                        </Text>
+                        ultimosSensores.map((registro) =>
+                            mostrarElemento(registro)
+                        )
 
-                    </View>
-
-                    <View style={styles.elemento}>
-
-                        <View style={styles.elementoEncabezado}>
-                            <Text style={styles.iconoElemento}>📏</Text>
-
-                            <Text style={styles.nombreElemento}>
-                                Sensor ultrasónico - Lado A
-                            </Text>
-                        </View>
-
-                        <Text style={styles.valorElemento}>
-                            {mostrarValor(ladoA)}
-                        </Text>
-
-                        <Text style={styles.fechaElemento}>
-                            {ladoA ? mostrarFecha(ladoA.fecha) : 'Sin detecciones'}
-                        </Text>
-
-                    </View>
-
-                    <View style={styles.elemento}>
-
-                        <View style={styles.elementoEncabezado}>
-                            <Text style={styles.iconoElemento}>📏</Text>
-
-                            <Text style={styles.nombreElemento}>
-                                Sensor ultrasónico - Lado B
-                            </Text>
-                        </View>
-
-                        <Text style={styles.valorElemento}>
-                            {mostrarValor(ladoB)}
-                        </Text>
-
-                        <Text style={styles.fechaElemento}>
-                            {ladoB ? mostrarFecha(ladoB.fecha) : 'Sin detecciones'}
-                        </Text>
-
-                    </View>
+                    )}
 
                 </View>
 
@@ -272,45 +361,33 @@ export default function HistorialScreenAdmin({ navigation }) {
                         Actuadores del invernadero
                     </Text>
 
-                    <View style={styles.elemento}>
+                    {ultimosActuadores.length === 0 ? (
 
-                        <View style={styles.elementoEncabezado}>
-                            <Text style={styles.iconoElemento}>💡</Text>
+                        <View style={styles.sinRegistros}>
 
-                            <Text style={styles.nombreElemento}>
-                                LED 1
+                            <Text style={styles.iconoVacio}>
+                                ⚙️
                             </Text>
+
+
+                            <Text style={styles.textoVacio}>
+                                Sin registros de actuadores
+                            </Text>
+
+                            <Text style={styles.descripcionVacio}>
+                                Los actuadores aparecerán aquí cuando
+                                se utilicen desde la aplicación.
+                            </Text>
+
                         </View>
 
-                        <Text style={styles.valorElemento}>
-                            {mostrarValor(led1)}
-                        </Text>
+                    ) : (
 
-                        <Text style={styles.fechaElemento}>
-                            {led1 ? mostrarFecha(led1.fecha) : 'Sin registros'}
-                        </Text>
+                        ultimosActuadores.map((registro) =>
+                            mostrarElemento(registro)
+                        )
 
-                    </View>
-
-                    <View style={styles.elemento}>
-
-                        <View style={styles.elementoEncabezado}>
-                            <Text style={styles.iconoElemento}>💡</Text>
-
-                            <Text style={styles.nombreElemento}>
-                                LED 2
-                            </Text>
-                        </View>
-
-                        <Text style={styles.valorElemento}>
-                            {mostrarValor(led2)}
-                        </Text>
-
-                        <Text style={styles.fechaElemento}>
-                            {led2 ? mostrarFecha(led2.fecha) : 'Sin registros'}
-                        </Text>
-
-                    </View>
+                    )}
 
                 </View>
 
@@ -322,45 +399,72 @@ export default function HistorialScreenAdmin({ navigation }) {
                         Registros del invernadero
                     </Text>
 
+                    {/* FILTROS */}
+
                     <View style={styles.filtros}>
 
-                        <Text
+                        <TouchableOpacity
                             style={[
                                 styles.filtro,
                                 filtro === 'Todos' && styles.filtroActivo
                             ]}
                             onPress={() => setFiltro('Todos')}
                         >
-                            Todos
-                        </Text>
 
-                        <Text
+                            <Text style={[
+                                styles.textoFiltro,
+                                filtro === 'Todos' && styles.textoFiltroActivo
+                            ]}>
+                                Todos
+                            </Text>
+
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             style={[
                                 styles.filtro,
                                 filtro === 'Sensor' && styles.filtroActivo
                             ]}
                             onPress={() => setFiltro('Sensor')}
                         >
-                            Sensores
-                        </Text>
 
-                        <Text
+                            <Text style={[
+                                styles.textoFiltro,
+                                filtro === 'Sensor' && styles.textoFiltroActivo
+                            ]}>
+                                Sensores
+                            </Text>
+
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
                             style={[
                                 styles.filtro,
                                 filtro === 'Actuador' && styles.filtroActivo
                             ]}
                             onPress={() => setFiltro('Actuador')}
                         >
-                            Actuadores
-                        </Text>
+
+                            <Text style={[
+                                styles.textoFiltro,
+                                filtro === 'Actuador' && styles.textoFiltroActivo
+                            ]}>
+                                Actuadores
+                            </Text>
+
+                        </TouchableOpacity>
 
                     </View>
+
+                    {/* LISTA DE REGISTROS */}
 
                     {historialFiltrado.length === 0 ? (
 
                         <View style={styles.sinRegistros}>
 
-                            <Text style={styles.iconoVacio}>📂</Text>
+                            <Text style={styles.iconoVacio}>
+                                📂
+                            </Text>
 
                             <Text style={styles.textoVacio}>
                                 No hay registros disponibles
@@ -385,7 +489,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                                 <View style={styles.registroEncabezado}>
 
                                     <Text style={styles.iconoRegistro}>
-                                        {registro.tipo === 'Sensor' ? '📡' : '⚙️'}
+                                        {obtenerIcono(registro)}
                                     </Text>
 
                                     <View style={styles.textoRegistro}>
@@ -600,17 +704,24 @@ const styles = StyleSheet.create({
     },
 
     filtro: {
-        fontSize: 13,
-        color: '#6B5142',
+
         backgroundColor: '#F3E9DC',
         paddingVertical: 10,
         paddingHorizontal: 12,
         borderRadius: 10,
-        overflow: 'hidden',
+
     },
 
     filtroActivo: {
         backgroundColor: '#5C4033',
+    },
+
+    textoFiltro: {
+        fontSize: 13,
+        color: '#6B5142',
+    },
+
+    textoFiltroActivo: {
         color: 'white',
         fontWeight: 'bold',
     },
@@ -619,6 +730,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F3E9DC',
         borderRadius: 12,
         paddingHorizontal: 15,
+        paddingVertical: 10,
         marginTop: 12,
         borderWidth: 1,
         borderColor: '#E1D4C6',
@@ -630,7 +742,7 @@ const styles = StyleSheet.create({
     },
 
     iconoRegistro: {
-        fontSize: 15,
+        fontSize: 23,
         marginRight: 12,
     },
 
@@ -654,7 +766,7 @@ const styles = StyleSheet.create({
     valorRegistroContainer: {
         marginTop: 10,
         backgroundColor: 'white',
-        padding: 4,
+        padding: 8,
         borderRadius: 10,
     },
 

@@ -4,13 +4,7 @@ import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableO
 
 import io from 'socket.io-client';
 import { initializeApp, getApps } from 'firebase/app';
-import {
-    getFirestore,
-    collection,
-    onSnapshot,
-    doc,
-    runTransaction
-} from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, doc, runTransaction } from 'firebase/firestore';
 
 import { firebaseConfig } from '../firebase/FirebaseConfig';
 
