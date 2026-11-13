@@ -12,6 +12,7 @@ export default function HistorialScreenAdmin({ navigation }) {
     const [filtro, setFiltro] = useState('Todos');
 
     useEffect(() => {
+
         const nuevaConexion = io(SERVER_URL);
 
         nuevaConexion.on('connect', () => {
@@ -24,45 +25,99 @@ export default function HistorialScreenAdmin({ navigation }) {
             console.log('Desconectado del servidor');
         });
 
+        // RECIBIR HISTORIAL COMPLETO
+
         nuevaConexion.on('historial_data', (data) => {
             setHistorial(data);
         });
 
+        // RECIBIR NUEVOS REGISTROS
+
         nuevaConexion.on('historial_update', (data) => {
-            setHistorial((historialAnterior) => [
-                data,
-                ...historialAnterior
-            ]);
+
+            setHistorial((historialAnterior) => {
+
+                // Evitar registros duplicados
+                if (historialAnterior.some((registro) => registro.id === data.id)) {
+                    return historialAnterior;
+                }
+
+                return [
+                    data,
+                    ...historialAnterior
+                ];
+
+            });
+
         });
 
         return () => {
             nuevaConexion.disconnect();
         };
+
     }, []);
 
+    // FILTRAR REGISTROS
+
     const historialFiltrado = historial.filter((registro) => {
+
         if (filtro === 'Todos') {
             return true;
         }
 
         return registro.tipo === filtro;
+
     });
+
+    // OBTENER EL ULTIMO REGISTRO DE CADA ELEMENTO
+
+    const obtenerUltimo = (nombre) => {
+
+        return historial.find((registro) => registro.nombre === nombre);
+
+    };
+
+    const humedad = obtenerUltimo('Sensor de humedad');
+
+    const ladoA = obtenerUltimo('Sensor ultrasónico - Lado A');
+
+    const ladoB = obtenerUltimo('Sensor ultrasónico - Lado B');
+
+    const led1 = obtenerUltimo('LED 1');
+
+    const led2 = obtenerUltimo('LED 2');
+
+    const mostrarValor = (registro) => {
+
+        if (!registro) {
+            return 'Sin registros';
+        }
+
+        return registro.valor;
+
+    };
 
     const mostrarFecha = (fecha) => {
         return new Date(fecha).toLocaleString('es-GT');
     };
 
     return (
+
         <SafeAreaView style={styles.areaSegura}>
+
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.contenidoScroll}
             >
 
+                {/* PRESENTACION */}
+
                 <View style={styles.presentacion}>
+
                     <Text style={styles.icono}>📋</Text>
 
                     <View style={styles.textoPresentacion}>
+
                         <Text style={styles.tituloPresentacion}>
                             Historial
                         </Text>
@@ -71,10 +126,15 @@ export default function HistorialScreenAdmin({ navigation }) {
                             Consulta los registros de sensores y actuadores
                             del invernadero.
                         </Text>
+
                     </View>
+
                 </View>
 
+                {/* ESTADO DEL SISTEMA */}
+
                 <View style={styles.card}>
+
                     <Text style={styles.titulo}>
                         Estado del sistema
                     </Text>
@@ -87,7 +147,9 @@ export default function HistorialScreenAdmin({ navigation }) {
                     </Text>
 
                     <View style={styles.resumen}>
+
                         <View style={styles.resumenItem}>
+
                             <Text style={styles.iconoResumen}>📊</Text>
 
                             <Text style={styles.valorResumen}>
@@ -97,9 +159,11 @@ export default function HistorialScreenAdmin({ navigation }) {
                             <Text style={styles.textoResumen}>
                                 Registros
                             </Text>
+
                         </View>
 
                         <View style={styles.resumenItem}>
+
                             <Text style={styles.iconoResumen}>📡</Text>
 
                             <Text style={styles.valorResumen}>
@@ -109,9 +173,11 @@ export default function HistorialScreenAdmin({ navigation }) {
                             <Text style={styles.textoResumen}>
                                 Sensores
                             </Text>
+
                         </View>
 
                         <View style={styles.resumenItem}>
+
                             <Text style={styles.iconoResumen}>⚙️</Text>
 
                             <Text style={styles.valorResumen}>
@@ -121,16 +187,143 @@ export default function HistorialScreenAdmin({ navigation }) {
                             <Text style={styles.textoResumen}>
                                 Actuadores
                             </Text>
+
                         </View>
+
                     </View>
+
                 </View>
 
+                {/* ESTADO DE SENSORES */}
+
                 <View style={styles.card}>
+
+                    <Text style={styles.titulo}>
+                        Sensores del invernadero
+                    </Text>
+
+                    <View style={styles.elemento}>
+
+                        <View style={styles.elementoEncabezado}>
+                            <Text style={styles.iconoElemento}>💧</Text>
+
+                            <Text style={styles.nombreElemento}>
+                                Sensor de humedad
+                            </Text>
+                        </View>
+
+                        <Text style={styles.valorElemento}>
+                            {mostrarValor(humedad)}
+                        </Text>
+
+                        <Text style={styles.fechaElemento}>
+                            {humedad ? mostrarFecha(humedad.fecha) : 'Esperando información'}
+                        </Text>
+
+                    </View>
+
+                    <View style={styles.elemento}>
+
+                        <View style={styles.elementoEncabezado}>
+                            <Text style={styles.iconoElemento}>📏</Text>
+
+                            <Text style={styles.nombreElemento}>
+                                Sensor ultrasónico - Lado A
+                            </Text>
+                        </View>
+
+                        <Text style={styles.valorElemento}>
+                            {mostrarValor(ladoA)}
+                        </Text>
+
+                        <Text style={styles.fechaElemento}>
+                            {ladoA ? mostrarFecha(ladoA.fecha) : 'Sin detecciones'}
+                        </Text>
+
+                    </View>
+
+                    <View style={styles.elemento}>
+
+                        <View style={styles.elementoEncabezado}>
+                            <Text style={styles.iconoElemento}>📏</Text>
+
+                            <Text style={styles.nombreElemento}>
+                                Sensor ultrasónico - Lado B
+                            </Text>
+                        </View>
+
+                        <Text style={styles.valorElemento}>
+                            {mostrarValor(ladoB)}
+                        </Text>
+
+                        <Text style={styles.fechaElemento}>
+                            {ladoB ? mostrarFecha(ladoB.fecha) : 'Sin detecciones'}
+                        </Text>
+
+                    </View>
+
+                </View>
+
+                {/* ESTADO DE ACTUADORES */}
+
+                <View style={styles.card}>
+
+                    <Text style={styles.titulo}>
+                        Actuadores del invernadero
+                    </Text>
+
+                    <View style={styles.elemento}>
+
+                        <View style={styles.elementoEncabezado}>
+                            <Text style={styles.iconoElemento}>💡</Text>
+
+                            <Text style={styles.nombreElemento}>
+                                LED 1
+                            </Text>
+                        </View>
+
+                        <Text style={styles.valorElemento}>
+                            {mostrarValor(led1)}
+                        </Text>
+
+                        <Text style={styles.fechaElemento}>
+                            {led1 ? mostrarFecha(led1.fecha) : 'Sin registros'}
+                        </Text>
+
+                    </View>
+
+                    <View style={styles.elemento}>
+
+                        <View style={styles.elementoEncabezado}>
+                            <Text style={styles.iconoElemento}>💡</Text>
+
+                            <Text style={styles.nombreElemento}>
+                                LED 2
+                            </Text>
+                        </View>
+
+                        <Text style={styles.valorElemento}>
+                            {mostrarValor(led2)}
+                        </Text>
+
+                        <Text style={styles.fechaElemento}>
+                            {led2 ? mostrarFecha(led2.fecha) : 'Sin registros'}
+                        </Text>
+
+                    </View>
+
+                </View>
+
+                {/* HISTORIAL COMPLETO */}
+
+                <View style={styles.card}>
+
                     <Text style={styles.titulo}>
                         Registros del invernadero
                     </Text>
 
                     <View style={styles.filtros}>
+
                         <Text
                             style={[
                                 styles.filtro,
@@ -160,11 +353,13 @@ export default function HistorialScreenAdmin({ navigation }) {
                         >
                             Actuadores
                         </Text>
+
                     </View>
 
                     {historialFiltrado.length === 0 ? (
 
                         <View style={styles.sinRegistros}>
+
                             <Text style={styles.iconoVacio}>📂</Text>
 
                             <Text style={styles.textoVacio}>
@@ -175,20 +370,26 @@ export default function HistorialScreenAdmin({ navigation }) {
                                 Los registros aparecerán aquí cuando
                                 el sistema reciba información.
                             </Text>
+
                         </View>
 
                     ) : (
 
                         historialFiltrado.map((registro, index) => (
 
-                            <View style={styles.registro} key={registro.id || index}>
+                            <View
+                                style={styles.registro}
+                                key={registro.id || index}
+                            >
 
                                 <View style={styles.registroEncabezado}>
+
                                     <Text style={styles.iconoRegistro}>
                                         {registro.tipo === 'Sensor' ? '📡' : '⚙️'}
                                     </Text>
 
                                     <View style={styles.textoRegistro}>
+
                                         <Text style={styles.nombreRegistro}>
                                             {registro.nombre}
                                         </Text>
@@ -196,10 +397,13 @@ export default function HistorialScreenAdmin({ navigation }) {
                                         <Text style={styles.tipoRegistro}>
                                             {registro.tipo}
                                         </Text>
+
                                     </View>
+
                                 </View>
 
                                 <View style={styles.valorRegistroContainer}>
+
                                     <Text style={styles.etiquetaRegistro}>
                                         Valor registrado
                                     </Text>
@@ -207,6 +411,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                                     <Text style={styles.valorRegistro}>
                                         {registro.valor}
                                     </Text>
+
                                 </View>
 
                                 <Text style={styles.fechaRegistro}>
@@ -218,11 +423,15 @@ export default function HistorialScreenAdmin({ navigation }) {
                         ))
 
                     )}
+
                 </View>
 
             </ScrollView>
+
         </SafeAreaView>
+
     );
+
 }
 
 const styles = StyleSheet.create({
@@ -343,6 +552,45 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#6B5142',
         marginTop: 4,
+    },
+
+    elemento: {
+        backgroundColor: '#F3E9DC',
+        borderRadius: 12,
+        padding: 15,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
+
+    elementoEncabezado: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+
+    iconoElemento: {
+        fontSize: 23,
+        marginRight: 10,
+    },
+
+    nombreElemento: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#4A3328',
+    },
+
+    valorElemento: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#8B6F47',
+        marginTop: 10,
+    },
+
+    fechaElemento: {
+        fontSize: 10,
+        color: '#6B5142',
+        marginTop: 5,
     },
 
     filtros: {

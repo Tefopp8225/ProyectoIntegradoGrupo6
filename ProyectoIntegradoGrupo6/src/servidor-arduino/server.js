@@ -1,3 +1,4 @@
+//Servidor de prueba
 // 1. IMPORTAR LIBRERIAS
 
 const express = require('express');
@@ -12,10 +13,7 @@ const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-
-const io = new Server(server, {
-    cors: { origin: '*' }
-});
+const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 
@@ -41,8 +39,7 @@ try {
 
 }
 
-
-// 4. ESTADO DE LOS SENSORES E HISTORIAL
+// 4. ESTADO DE LOS SENSORES Y HISTORIAL
 
 let sensorValue = 0;
 
@@ -52,8 +49,7 @@ let zonaAnterior = 'NINGUNA';
 
 let historial = [];
 
-
-// 5. FUNCION PARA GUARDAR REGISTROS
+// FUNCION PARA GUARDAR REGISTROS
 
 function registrarRegistro(tipo, nombre, valor) {
 
@@ -67,18 +63,19 @@ function registrarRegistro(tipo, nombre, valor) {
 
     historial.unshift(registro);
 
+    // Mantener solamente los últimos 100 registros
     if (historial.length > 100) {
         historial.pop();
     }
 
+    // Enviar el nuevo registro a la aplicación
     io.emit('historial_update', registro);
 
     console.log('[HISTORIAL]', registro);
 
 }
 
-
-// 6. IDENTIFICAR LA ZONA DE LA PLANTA
+// IDENTIFICAR ZONA DEL SENSOR ULTRASONICO
 
 function identificarZona(distancia) {
 
@@ -88,22 +85,15 @@ function identificarZona(distancia) {
 
     }
 
-    else if (distancia >= 27 && distancia <= 33) {
-
+    if (distancia >= 27 && distancia <= 33) {
         return 'B';
 
     }
-
-    else {
-
-        return 'NINGUNA';
-
-    }
+    return 'NINGUNA';
 
 }
 
-
-// 7. LEER DATOS DEL ARDUINO
+// 5. LEER DATOS DEL ARDUINO
 
 if (serialPort) {
 
@@ -141,67 +131,53 @@ if (serialPort) {
 
         }
 
-
-        // SENSOR ULTRASONICO
+        // SENSOR ULTRASONICO - CRECIMIENTO
 
         if (line.startsWith('DISTANCIA:')) {
 
             distanciaValue = parseFloat(line.split(':')[1]);
 
-            if (!Number.isFinite(distanciaValue)) {
-                return;
-            }
+            if (Number.isFinite(distanciaValue)) {
 
-            // Si no hay detección válida, establecer distancia en cero
+                let zonaActual = identificarZona(distanciaValue);
 
-            if (distanciaValue < 0 || distanciaValue > 40) {
-                distanciaValue = 0;
-            }
+                console.log(
+                    '[CRECIMIENTO] Distancia:',
+                    distanciaValue,
+                    'cm - Zona:',
+                    zonaActual
+                );
 
-            // Enviar la distancia real a la pantalla de crecimiento
+                // Enviar distancia a la aplicación
+                io.emit('plant_distance', {
+                    value: distanciaValue,
+                    zona: zonaActual
+                });
 
-            io.emit('plant_distance', {
-                value: distanciaValue
-            });
+                // Registrar solamente cuando entra a una zona nueva
+                if (zonaActual !== zonaAnterior) {
 
+                    if (zonaActual === 'A') {
 
-            // Identificar si corresponde al lado A o B
+                        registrarRegistro(
+                            'Sensor',
+                            'Sensor ultrasónico - Lado A',
+                            distanciaValue.toFixed(1) + ' cm'
+                        );
 
-            const zonaActual = identificarZona(distanciaValue);
+                    } else if (zonaActual === 'B') {
 
-            console.log(
-                '[PLANTAS] Distancia:',
-                distanciaValue,
-                'cm | Zona:',
-                zonaActual
-            );
+                        registrarRegistro(
+                            'Sensor',
+                            'Sensor ultrasónico - Lado B',
+                            distanciaValue.toFixed(1) + ' cm'
+                        );
 
+                    }
 
-            // Registrar solamente cuando cambia a una zona detectada
-
-            if (zonaActual !== zonaAnterior) {
-
-                if (zonaActual === 'A') {
-
-                    registrarRegistro(
-                        'Sensor',
-                        'Planta lado A',
-                        distanciaValue.toFixed(1) + ' cm'
-                    );
-
-                }
-
-                else if (zonaActual === 'B') {
-
-                    registrarRegistro(
-                        'Sensor',
-                        'Planta lado B',
-                        distanciaValue.toFixed(1) + ' cm'
-                    );
+                    zonaAnterior = zonaActual;
 
                 }
-
-                zonaAnterior = zonaActual;
 
             }
 
@@ -229,8 +205,7 @@ if (serialPort) {
 
 }
 
-
-// 8. MANEJAR CONEXIONES DE LA APP
+// 6. MANEJAR CONEXIONES DE LA APP
 
 io.on('connection', (socket) => {
 
@@ -241,11 +216,17 @@ io.on('connection', (socket) => {
 
     socket.emit('historial_data', historial);
 
+    // ENVIAR HUMEDAD ACTUAL
+
+    socket.emit('sensor_data', {
+        value: sensorValue
+    });
 
     // ENVIAR DISTANCIA ACTUAL DEL ULTRASONICO
 
     socket.emit('plant_distance', {
-        value: distanciaValue
+        value: distanciaValue,
+        zona: identificarZona(distanciaValue)
     });
 
 
@@ -295,10 +276,7 @@ io.on('connection', (socket) => {
 
                 if (error) {
 
-                    console.log(
-                        '[ERROR] No se pudo enviar el comando:',
-                        error.message
-                    );
+                    console.log('[ERROR] No se pudo enviar el comando:', error.message);
 
                 } else {
 
@@ -335,8 +313,7 @@ io.on('connection', (socket) => {
 
 });
 
-
-// 9. INICIAR SERVIDOR
+// 7. INICIAR SERVIDOR
 
 const PORT = 3000;
 
@@ -348,13 +325,12 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log('Puerto:', PORT);
     console.log('Arduino:', PUERTO_ARDUINO);
     console.log('Historial activado');
-    console.log('Sensor de crecimiento activado');
+
     console.log('========================================');
 
 });
 
-
-// 10. MANEJAR ERRORES GENERALES
+// 8. MANEJAR ERRORES GENERALES
 
 process.on('uncaughtException', (error) => {
 
