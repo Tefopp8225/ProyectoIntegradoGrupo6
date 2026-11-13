@@ -31,7 +31,7 @@ const obtenerNombreProducto = (id, nombreGuardado = '') => {
     return producto ? producto.nombre : (nombreGuardado || 'Producto desconocido');
 };
 
-const SERVER_URL = 'http://192.168.1.26:3000';
+const SERVER_URL = 'http://192.168.1.29:3000';
 
 export default function CrecimientoScreenUsu({ navigation }) {
 
@@ -51,30 +51,16 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
     // CONEXIÓN CON EL SENSOR
     useEffect(() => {
-
-        const nuevaConexion = io(SERVER_URL, {
-            reconnection: true,
-            reconnectionAttempts: 10,
-            reconnectionDelay: 2000,
-        });
+        const nuevaConexion = io(SERVER_URL);
 
         nuevaConexion.on('connect', () => {
             setConectado(true);
-            console.log('Conectado al servidor:', nuevaConexion.id);
+            console.log('Conectado al servidor');
         });
 
-        nuevaConexion.on('disconnect', (motivo) => {
+        nuevaConexion.on('disconnect', () => {
             setConectado(false);
-            setSensorDistance(null);
-            setLadoA(false);
-            setLadoB(false);
-
-            console.log('Desconectado del servidor:', motivo);
-        });
-
-        nuevaConexion.on('connect_error', (error) => {
-            setConectado(false);
-            console.log('ERROR DE CONEXION:', error.message);
+            console.log('Desconectado del servidor');
         });
 
         // Recibir distancia del sensor
@@ -587,145 +573,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                 </View>
 
-                {/* INVENTARIO */}
-                <View style={styles.card}>
-
-                    <Text style={styles.titulo}>
-                        Materiales e inventario
-                    </Text>
-
-                    <View style={styles.informacion}>
-
-                        <Text style={styles.iconoInfo}>📦</Text>
-
-                        <View style={styles.textoInfo}>
-
-                            <Text style={styles.subtitulo}>
-                                Materiales disponibles
-                            </Text>
-
-                            <Text style={styles.valorInfo}>
-                                Inventario actual
-                            </Text>
-
-                        </View>
-
-                    </View>
-
-                    {inventario.length === 0 ? (
-
-                        <Text style={styles.registroVacio}>
-                            No hay materiales registrados en el inventario.
-                        </Text>
-
-                    ) : (
-
-                        inventario.map((producto) => (
-
-                            <View key={producto.id} style={styles.materialCompacto}>
-
-                                <View style={styles.materialEncabezado}>
-
-                                    <Text style={styles.nombreMaterial}>
-                                        {obtenerNombreProducto(producto.id, producto.nombre)}
-                                    </Text>
-
-                                    <Text style={styles.stockMaterial}>
-                                        Stock: {producto.cantidad}
-                                    </Text>
-
-                                </View>
-
-                                <View style={styles.filaUso}>
-
-                                    <TextInput
-                                        style={styles.inputUso}
-                                        placeholder="Cantidad"
-                                        value={cantidadesUso[producto.id] || ''}
-                                        onChangeText={(valor) => cambiarCantidadUso(producto.id, valor)}
-                                        keyboardType="numeric"
-                                    />
-
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.botonUsar,
-                                            Number(producto.cantidad) <= 0 && styles.botonDesactivado
-                                        ]}
-                                        disabled={Number(producto.cantidad) <= 0}
-                                        onPress={() => usarMaterial(producto)}
-                                    >
-
-                                        <Text style={styles.textoBotonUsar}>
-                                            Usar
-                                        </Text>
-
-                                    </TouchableOpacity>
-
-                                </View>
-
-                                {Number(producto.cantidad) <= 0 && (
-
-                                    <Text style={styles.sinStock}>
-                                        Sin existencias disponibles
-                                    </Text>
-
-                                )}
-
-                            </View>
-
-                        ))
-
-                    )}
-
-                    <View style={styles.separadorMaterial} />
-
-                    <Text style={styles.subtituloRegistro}>
-                        Registro de materiales utilizados
-                    </Text>
-
-                    {materialesUtilizados.length === 0 ? (
-
-                        <View style={styles.registroPendiente}>
-
-                            <Text style={styles.iconoRegistro}>📝</Text>
-
-                            <Text style={styles.textoRegistro}>
-                                Aquí aparecerán los materiales utilizados
-                                y las cantidades registradas.
-                            </Text>
-
-                        </View>
-
-                    ) : (
-
-                        materialesUtilizados.map((registro) => (
-
-                            <View key={registro.id} style={styles.registroMaterial}>
-
-                                <View style={styles.textoInfo}>
-
-                                    <Text style={styles.nombreMaterial}>
-                                        {obtenerNombreProducto(registro.productoId, registro.producto)}
-                                    </Text>
-
-                                    <Text style={styles.cantidadMaterial}>
-                                        {new Date(registro.fecha).toLocaleString('es-GT')}
-                                    </Text>
-
-                                </View>
-
-                                <Text style={styles.cantidadValor}>
-                                    -{registro.cantidad}
-                                </Text>
-
-                            </View>
-
-                        ))
-
-                    )}
-
-                </View>
-
             </ScrollView>
 
         </SafeAreaView>
@@ -980,168 +827,6 @@ const styles = StyleSheet.create({
         marginTop: 12,
         borderWidth: 1,
         borderColor: '#E1D4C6',
-    },
-
-    pedidoEncabezado: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-
-    iconoPedido: {
-        fontSize: 30,
-        marginLeft: 10,
-    },
-
-    estadoPedido: {
-        color: '#D97706',
-        fontWeight: 'bold',
-        fontSize: 13,
-        marginTop: 5,
-    },
-
-    botonRecibir: {
-        backgroundColor: '#53634A',
-        padding: 12,
-        borderRadius: 8,
-        alignItems: 'center',
-        marginTop: 12,
-    },
-
-    textoBotonRecibir: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-
-    materialCompacto: {
-        backgroundColor: '#F8F4EF',
-        padding: 12,
-        borderRadius: 10,
-        marginTop: 10,
-        borderWidth: 1,
-        borderColor: '#E1D4C6',
-    },
-
-    materialEncabezado: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-
-    nombreMaterial: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#4A3328',
-    },
-
-    cantidadMaterial: {
-        fontSize: 12,
-        color: '#8B6F47',
-        marginTop: 4,
-    },
-
-    stockMaterial: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#53634A',
-    },
-
-    filaUso: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 8,
-    },
-
-    inputUso: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#D7CCC8',
-        borderRadius: 7,
-        padding: 8,
-        backgroundColor: 'white',
-        marginRight: 8,
-        fontSize: 14,
-    },
-
-    botonUsar: {
-        backgroundColor: '#53634A',
-        paddingVertical: 10,
-        paddingHorizontal: 22,
-        borderRadius: 7,
-        alignItems: 'center',
-    },
-
-    botonDesactivado: {
-        backgroundColor: '#A9A9A9',
-    },
-
-    textoBotonUsar: {
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: 13,
-    },
-
-    sinStock: {
-        fontSize: 12,
-        color: '#A94438',
-        marginTop: 6,
-    },
-
-    registroVacio: {
-        fontSize: 13,
-        color: '#8B6F47',
-        marginTop: 15,
-        textAlign: 'center',
-    },
-
-    separadorMaterial: {
-        height: 1,
-        backgroundColor: '#E1D4C6',
-        marginVertical: 20,
-    },
-
-    subtituloRegistro: {
-        fontSize: 17,
-        fontWeight: 'bold',
-        color: '#4A3328',
-        marginBottom: 12,
-    },
-
-    registroPendiente: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F3E9DC',
-        padding: 15,
-        borderRadius: 12,
-    },
-
-    iconoRegistro: {
-        fontSize: 28,
-        marginRight: 12,
-    },
-
-    textoRegistro: {
-        flex: 1,
-        fontSize: 13,
-        color: '#6B5142',
-        lineHeight: 20,
-        textAlign: 'justify',
-    },
-
-    registroMaterial: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: '#F8F4EF',
-        padding: 12,
-        borderRadius: 10,
-        marginBottom: 8,
-    },
-
-    cantidadValor: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#53634A',
     },
 
 });
