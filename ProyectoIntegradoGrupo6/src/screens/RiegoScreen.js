@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialCommunityIcons2 from '@expo/vector-icons/MaterialCommunityIcons';
 
-const SERVER_URL = 'http://192.168.0.32:3000';
+const SERVER_URL = 'http://192.168.0.7:3000';
 
 export default function RiegoScreen({ navigation }) {
     const [socket, setSocket] = useState(null);
@@ -235,14 +235,14 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginBottom: 10,
         marginTop: 10,
-        fontWeight: '500',
-        width: '100%'
+        width: '70%',
+        marginLeft:'15%'
     },
     botonEncender: {
         backgroundColor: '#2e7d32'
     },
     botonApagar: {
-        backgroundColor: '#c62828'
+        backgroundColor: '#58391b'
     },
     descripcionInfo: {
         fontSize: 14,
@@ -257,8 +257,8 @@ const styles = StyleSheet.create({
         color: '#6A994E'
     },
     desconectado: {
-        backgroundColor: '#ffebee',
-        color: '#E5383B'
+        backgroundColor: '#F3E9DC',
+        color: '#58391b'
     },
     botones: {
         flexDirection: 'row',

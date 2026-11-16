@@ -1,28 +1,21 @@
-#include <Servo.h>
-
 // Pines para Crecimiento (Sensor Ultrasónico)
 const int TRIG = 9;
 const int ECHO = 10;
 float distanciaInicial = 30.0;
-bool objetoDetectado = false;
 
 // Pines para Ambiente y Actuadores
 const int pinSensorTemperatura = A2;
 const int pinVentilador = 4;
 
-// Servo 2 del techo (Rotación continua de 360°)
-Servo techoServo2;
-const int pinServo2 = 5; // O el pin donde tengas el segundo servo
-
 // Luces
 const int pinLed1Calle = 7;
 const int pinLed2Calle = 8;
-const int pinLedSol = 11; 
+const int pinLedSol = 11;
 const int pinLDR = A3;
 
 void setup() {
     Serial.begin(9600);
-    
+
     pinMode(TRIG, OUTPUT);
     pinMode(ECHO, INPUT);
     pinMode(pinSensorTemperatura, INPUT);
@@ -36,10 +29,6 @@ void setup() {
     digitalWrite(pinLed1Calle, LOW);
     digitalWrite(pinLed2Calle, LOW);
     digitalWrite(pinLedSol, HIGH);
-
-    // Inicializar el Servo 2 detenido (90)
-    techoServo2.attach(pinServo2);
-    techoServo2.write(90); 
 }
 
 void loop() {
@@ -85,18 +74,6 @@ void loop() {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        if (command == "VENTANA_ABRIR") {
-            techoServo2.write(0);   // Gira para abrir
-            delay(1500);            // Mismo tiempo que el Arduino 1
-            techoServo2.write(90);  // Se detiene
-            Serial.println("TECHO2_ABIERTO");
-        } else if (command == "VENTANA_CERRAR") {
-            techoServo2.write(180); // Gira para cerrar
-            delay(1500);            // Mismo tiempo de movimiento
-            techoServo2.write(90);  // Se detiene
-            Serial.println("TECHO2_CERRADO");
-        }
-
         if (command == "VENTILADOR_ON") {
             digitalWrite(pinVentilador, HIGH);
             Serial.println("VENTILADOR_ENCENDIDO");
@@ -106,18 +83,24 @@ void loop() {
         }
         else if (command == "LEDSOL_ON") {
             digitalWrite(pinLedSol, HIGH);
+            Serial.println("LEDSOL_ENCENDIDO");
         } else if (command == "LEDSOL_OFF") {
             digitalWrite(pinLedSol, LOW);
+            Serial.println("LEDSOL_APAGADO");
         }
         else if (command == "LED1Calle_ON") {
             digitalWrite(pinLed1Calle, HIGH);
+            Serial.println("LED1Calle_ENCENDIDO");
         } else if (command == "LED1Calle_OFF") {
             digitalWrite(pinLed1Calle, LOW);
+            Serial.println("LED1Calle_APAGADO");
         }
         else if (command == "LED2Calle_ON") {
             digitalWrite(pinLed2Calle, HIGH);
+            Serial.println("LED2Calle_ENCENDIDO");
         } else if (command == "LED2Calle_OFF") {
             digitalWrite(pinLed2Calle, LOW);
+            Serial.println("LED2Calle_APAGADO");
         }
     }
 

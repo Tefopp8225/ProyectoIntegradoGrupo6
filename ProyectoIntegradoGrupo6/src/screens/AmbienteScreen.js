@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
-const SERVER_URL = 'http://192.168.0.32:3000';
+const SERVER_URL = 'http://192.168.0.7:3000';
 
 export default function AmbienteScreen({ navigation }) {
     const [socket, setSocket] = useState(null);
@@ -49,10 +49,16 @@ export default function AmbienteScreen({ navigation }) {
     const cerrarVentana = () => enviar('command_ventana', 'CERRAR');
     const encenderLedInvernadero = () => enviar('command_ledinvernadero', 'ON');
     const apagarLedInvernadero = () => enviar('command_ledinvernadero', 'OFF');
-    const encenderLed1Calle = () => enviar('command_led1calle', 'ON');
-    const apagarLed1Calle = () => enviar('command_led1calle', 'OFF');
-    const encenderLed2Calle = () => enviar('command_led2calle', 'ON');
-    const apagarLed2Calle = () => enviar('command_led2calle', 'OFF');
+    const encenderLucesJardin = () => {
+        enviar('command_led1calle', 'ON');
+        enviar('command_led2calle', 'ON');
+    };
+
+    const apagarLucesJardin = () => {
+        enviar('command_led1calle', 'OFF');
+        enviar('command_led2calle', 'OFF');
+    };
+    const lucesJardinEncendidas = led1CalleEncendido && led2CalleEncendido;
     return (
         <SafeAreaView style={styles.areaSegura}>
             <ScrollView
@@ -143,7 +149,7 @@ export default function AmbienteScreen({ navigation }) {
                         <View style={styles.apartadoLuz}>
                             <Text style={styles.iconoProgramado}>💡</Text>
                             <Text style={[styles.estadoLuces, ledInvernaderoEncendido ? styles.conectado : styles.desconectado]}>
-                                {ledInvernaderoEncendido ? 'ENCENDIDO' : 'APAGADO'}
+                                {ledInvernaderoEncendido ? 'ENCENDIDA' : 'APAGADA'}
                             </Text>
                         </View>
                         <View style={styles.textoProgramado}>
@@ -173,17 +179,17 @@ export default function AmbienteScreen({ navigation }) {
                     <View style={styles.apartadoLuces}>
                         <View style={styles.apartadoLuz}>
                             <Text style={styles.iconoProgramado}>💡</Text>
-                            <Text style={[styles.estadoLuces, led1CalleEncendido  ? styles.conectado : styles.desconectado]}>
-                                {led1CalleEncendido  ? 'ENCENDIDO' : 'APAGADO'}
+                            <Text style={[styles.estadoLuces, lucesJardinEncendidas  ? styles.conectado : styles.desconectado]}>
+                                {lucesJardinEncendidas ? 'ENCENDIDA' : 'APAGADA'}
                             </Text>
                         </View>
                         <View style={styles.textoProgramado}>
-                            <Text style={styles.subtituloProgramado}>Luz 1 Jardín</Text>
+                            <Text style={styles.subtituloProgramado}>Luces del Jardín</Text>
                             <View style={styles.apartadoBotonesLuces}>
                                 <View style={styles.botones2}>
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonEncender]}
-                                        onPress={encenderLed1Calle}
+                                        onPress={encenderLucesJardin}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>ENCENDER</Text>
@@ -191,7 +197,7 @@ export default function AmbienteScreen({ navigation }) {
 
                                     <TouchableOpacity
                                         style={[styles.boton2, styles.botonApagar]}
-                                        onPress={apagarLed1Calle}
+                                        onPress={apagarLucesJardin}
                                         disabled={!conectado}
                                     >
                                         <Text style={styles.textoBoton2}>APAGAR</Text>
@@ -201,36 +207,7 @@ export default function AmbienteScreen({ navigation }) {
                         </View>
                     </View>
 
-                    <View style={styles.apartadoLuces}>
-                        <View style={styles.apartadoLuz}>
-                            <Text style={styles.iconoProgramado}>💡</Text>
-                            <Text style={[styles.estadoLuces, led2CalleEncendido  ? styles.conectado : styles.desconectado]}>
-                                {led2CalleEncendido  ? 'ENCENDIDO' : 'APAGADO'}
-                            </Text>
-                        </View>
-                        <View style={styles.textoProgramado}>
-                            <Text style={styles.subtituloProgramado}>Luz 2 Jardín</Text>
-                            <View style={styles.apartadoBotonesLuces}>
-                                <View style={styles.botones2}>
-                                    <TouchableOpacity
-                                        style={[styles.boton2, styles.botonEncender]}
-                                        onPress={encenderLed2Calle}
-                                        disabled={!conectado}
-                                    >
-                                        <Text style={styles.textoBoton2}>ENCENDER</Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={[styles.boton2, styles.botonApagar]}
-                                        onPress={apagarLed2Calle}
-                                        disabled={!conectado}
-                                    >
-                                        <Text style={styles.textoBoton2}>APAGAR</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
+                    
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -259,7 +236,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#c8e1c6',
-        marginTop:15,
+        marginTop: 15,
     },
     icono: {
         marginRight: 15,
@@ -324,33 +301,32 @@ const styles = StyleSheet.create({
     },
     estado: {
         textAlign: 'center',
-        fontSize: 15,
+        fontSize: 14,
         padding: 10,
         borderRadius: 10,
         marginBottom: 10,
         marginTop: 10,
-        fontWeight: '500',
-        width: '100%'
+        width: '50%'
     },
     estadoLuces: {
         textAlign: 'center',
-        fontSize: 15,
-        padding: 2,
+        fontSize: 13,
+        padding: 1,
         borderRadius: 10,
         marginBottom: 1,
         marginTop: 1,
-        fontWeight: '500',
         width: '100%'
     },
-    apartadoLuz:{
-        flexDirection:'column',
-        marginRight:14
+    apartadoLuz: {
+        flexDirection: 'column',
+        marginRight: 12,
+        width:'28%'
     },
     botonEncender: {
         backgroundColor: '#2e7d32'
     },
     botonApagar: {
-        backgroundColor: '#c62828'
+        backgroundColor: '#58391b'
     },
     descripcionInfo: {
         fontSize: 14,
@@ -365,8 +341,8 @@ const styles = StyleSheet.create({
         color: '#6A994E'
     },
     desconectado: {
-        backgroundColor: '#ffebee',
-        color: '#E5383B'
+        backgroundColor: '#F3E9DC',
+        color: '#58391b'
     },
     botones: {
         flexDirection: 'row',
@@ -401,8 +377,8 @@ const styles = StyleSheet.create({
     },
     iconoProgramado: {
         fontSize: 35,
-        marginLeft:17,
-        marginBottom:10
+        marginLeft: 20,
+        marginBottom: 10
     },
     textoProgramado: {
         flex: 1,
@@ -415,17 +391,17 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#F3E9DC',
-        padding: 10,
-        paddingTop:15,
-        paddingBottom:15,
+        padding: 7,
+        paddingTop: 15,
+        paddingBottom: 15,
         borderRadius: 12,
         marginTop: 5,
-        marginBottom:10
+        marginBottom: 10
     },
     botones2: {
         flexDirection: 'row',
         marginTop: 5,
-        width:'50%'
+        width: '50%'
     },
     boton2: {
         paddingVertical: 8,
@@ -435,7 +411,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         margin: 2
     },
-    
+
     textoBoton2: {
         color: 'white',
         fontSize: 15,

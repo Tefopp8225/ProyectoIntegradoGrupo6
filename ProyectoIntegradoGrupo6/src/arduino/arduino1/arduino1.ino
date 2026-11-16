@@ -1,49 +1,47 @@
 #include <Servo.h>
 
-const int pinBomba = 3;  
+// --- RIEGO ---
+const int pinBomba = 3;
 const int pinSensorHumedad1 = A0;
 const int pinSensorHumedad2 = A1;
 
-// Servo 1 del techo en el PIN 2 (Rotación continua de 360°)
+// --- VENTANA (DOS SERVOS) ---
 Servo techoServo1;
+Servo techoServo2;
 const int pinServo1 = 2;
+const int pinServo2 = 5;
+
+const int SERVO_PARADO = 90;
+const int SERVO_ABRIR  = 0;
+const int SERVO_CERRAR = 180;
+const unsigned long TIEMPO_VENTANA = 130;
 
 void setup() {
     Serial.begin(9600);
+
     pinMode(pinBomba, OUTPUT);
     pinMode(pinSensorHumedad1, INPUT);
     pinMode(pinSensorHumedad2, INPUT);
-    
+
     digitalWrite(pinBomba, LOW);
 
-    // Inicializar el Servo 1 detenido (90)
+    // Inicializar ambos servos detenidos
     techoServo1.attach(pinServo1);
-    techoServo1.write(90); 
+    techoServo1.write(SERVO_PARADO);
+    techoServo2.attach(pinServo2);
+    techoServo2.write(SERVO_PARADO);
 }
 
 void loop() {
     int valorHumedad1 = analogRead(pinSensorHumedad1);
     int valorHumedad2 = analogRead(pinSensorHumedad2);
 
-    // Procesar comandos del servidor
+    // --- COMANDOS DEL SERVIDOR ---
     if (Serial.available() > 0) {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        if (command == "VENTANA_ABRIR") {
-            techoServo1.write(0);   // Gira en un sentido para abrir
-            delay(1500);            // Tiempo de apertura (ajústalo si es necesario)
-            techoServo1.write(90);  // Se detiene
-            Serial.println("TECHO1_ABIERTO");
-            
-        } 
-        else if (command == "VENTANA_CERRAR") {
-            techoServo1.write(180); // Gira en sentido contrario para cerrar
-            delay(1500);            // Mismo tiempo de movimiento
-            techoServo1.write(90);  // Se detiene
-            Serial.println("TECHO1_CERRADO");
-        }
-
+        // BOMBA
         if (command == "BOMBA_ON") {
             digitalWrite(pinBomba, HIGH);
             Serial.println("BOMBA_ENCENDIDA");
@@ -51,9 +49,26 @@ void loop() {
             digitalWrite(pinBomba, LOW);
             Serial.println("BOMBA_APAGADA");
         }
+
+        // VENTANA: ambos servos giran juntos
+        else if (command == "VENTANA_ABRIR") {
+            techoServo1.write(SERVO_ABRIR);
+            techoServo2.write(SERVO_CERRAR);
+            delay(TIEMPO_VENTANA);
+            techoServo1.write(SERVO_PARADO);
+            techoServo2.write(SERVO_PARADO);
+            Serial.println("VENTANA_ABIERTA");
+        } else if (command == "VENTANA_CERRAR") {
+            techoServo1.write(SERVO_CERRAR);
+            techoServo2.write(SERVO_ABRIR);
+            delay(TIEMPO_VENTANA);
+            techoServo1.write(SERVO_PARADO);
+            techoServo2.write(SERVO_PARADO);
+            Serial.println("VENTANA_CERRADA");
+        }
     }
 
-    // Enviar datos de humedad al servidor cada 2 segundos
+    // --- ENVIAR HUMEDAD CADA 2 SEGUNDOS ---
     static unsigned long lastSend = 0;
     if (millis() - lastSend > 2000) {
         lastSend = millis();
