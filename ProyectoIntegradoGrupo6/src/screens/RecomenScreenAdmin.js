@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, StatusBar} from 'react-native';
+import { View, Text, TextInput, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 
 const SERVER_URL = 'https://invernadero-chatbot.blancaprz413.workers.dev';
@@ -12,17 +12,16 @@ const preguntas = [
 ];
 
 export default function RecomenScreenAdmin() {
+    const { width } = useWindowDimensions();
+    const esTablet = width >= 768; // Punto de corte estándar para tablets
 
     const [consulta, setConsulta] = useState('');
-
     const [respuestaIA, setRespuestaIA] = useState(
         '¡Bienvenido! Soy tu asistente del invernadero. Puedo ayudarte con recomendaciones sobre riego, cuidados, crecimiento y condiciones para tus cultivos. ¿Qué te gustaría consultar hoy?'
     );
-
     const [cargando, setCargando] = useState(false);
 
     const obtenerRecomendacionIA = async (pregunta = consulta) => {
-
         const texto = pregunta.trim();
 
         if (!texto) {
@@ -35,7 +34,6 @@ export default function RecomenScreenAdmin() {
         setRespuestaIA('');
 
         try {
-
             const response = await fetch(`${SERVER_URL}/chat`, {
                 method: 'POST',
                 headers: {
@@ -60,271 +58,193 @@ export default function RecomenScreenAdmin() {
             );
 
         } catch (error) {
-
             console.log('Error:', error);
-
             setRespuestaIA(
                 'No fue posible conectar con el asistente. Comprueba tu conexión a Internet.'
             );
-
         } finally {
-
             setCargando(false);
-
         }
     };
 
     return (
-
         <View style={styles.container}>
-            {/* Barra de estado con el nuevo tono de café */}
             <StatusBar barStyle="light-content" backgroundColor="#693c12" />
 
-            <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={styles.contenido}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+            <KeyboardAvoidingView // para que no se oculte la caja de texto
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
+                <ScrollView
+                    style={styles.scroll}
+                    contentContainerStyle={[
+                        styles.contenido,
+                        { maxWidth: esTablet ? 700 : '94%' } // Centrado y limitado en tablets
+                    ]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
 
-                {/* ENCABEZADO */}
-
-                <View style={styles.encabezado}>
-
-                    <View style={styles.filaEncabezado}>
-
-                        <View style={styles.iconoIA}>
-                            <FontAwesome
-                                name="magic"
-                                size={26}
-                                color="#FFFFFF"
-                            />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.titulo}>
-                                Recomendaciones IA
-                            </Text>
-
-                            <Text style={styles.subtitulo}>
-                                Asistente inteligente del invernadero
-                            </Text>
-                        </View>
-
-                    </View>
-
-                    <View style={styles.estadoIA}>
-                        <View style={styles.puntoVerde} />
-
-                        <Text style={styles.textoEstado}>
-                            Asistente disponible
-                        </Text>
-                    </View>
-
-                </View>
-
-                {/* CONTENEDOR PRINCIPAL AGRUPADO */}
-                <View style={styles.cuerpoPrincipal}>
-
-                    {/* TARJETA DE RESPUESTA */}
-
-                    <View style={styles.seccionRespuesta}>
-
-                        <View style={styles.encabezadoRespuesta}>
-
-                            <View style={styles.iconoRespuesta}>
-                                <FontAwesome
-                                    name="commenting"
-                                    size={18}
-                                    color="#FFFFFF"
-                                />
+                    {/* ENCABEZADO */}
+                    <View style={styles.encabezado}>
+                        <View style={styles.filaEncabezado}>
+                            <View style={styles.iconoIA}>
+                                <FontAwesome name="magic" size={esTablet ? 30 : 26} color="#FFFFFF" />
                             </View>
 
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.tituloRespuesta}>
-                                    Asistente del invernadero
+                                <Text style={[styles.titulo, esTablet && { fontSize: 25 }]}>
+                                    Recomendaciones IA
                                 </Text>
-
-                                <Text style={styles.subtituloRespuesta}>
-                                    Recomendaciones y orientación
+                                <Text style={[styles.subtitulo, esTablet && { fontSize: 13 }]}>
+                                    Asistente inteligente del invernadero
                                 </Text>
                             </View>
-
-                            <FontAwesome
-                                name="leaf"
-                                size={18}
-                                color="#2E7D32"
-                            />
-
                         </View>
 
-                        <View style={styles.divisor} />
+                        <View style={styles.estadoIA}>
+                            <View style={styles.puntoVerde} />
+                            <Text style={styles.textoEstado}>
+                                Asistente disponible
+                            </Text>
+                        </View>
+                    </View>
 
-                        <ScrollView
-                            style={styles.contenedorTexto}
-                            nestedScrollEnabled={true}
-                            showsVerticalScrollIndicator={true}
-                        >
+                    {/* CONTENEDOR PRINCIPAL AGRUPADO */}
+                    <View style={styles.cuerpoPrincipal}>
 
-                            {cargando ? (
+                        {/* TARJETA DE RESPUESTA */}
+                        <View style={styles.seccionRespuesta}>
+                            <View style={styles.encabezadoRespuesta}>
+                                <View style={styles.iconoRespuesta}>
+                                    <FontAwesome name="commenting" size={18} color="#FFFFFF" />
+                                </View>
 
-                                <View style={styles.cargando}>
-                                    <ActivityIndicator
-                                        size="large"
-                                        color="#2E7D32"
-                                    />
-
-                                    <Text style={styles.textoCargando}>
-                                        Analizando tu consulta...
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.tituloRespuesta, esTablet && { fontSize: 15 }]}>
+                                        Asistente del invernadero
+                                    </Text>
+                                    <Text style={[styles.subtituloRespuesta, esTablet && { fontSize: 11.5 }]}>
+                                        Recomendaciones y orientación
                                     </Text>
                                 </View>
 
-                            ) : (
+                                <FontAwesome name="leaf" size={18} color="#2E7D32" />
+                            </View>
 
-                                <Text style={styles.textoRespuesta}>
-                                    {respuestaIA}
-                                </Text>
+                            <View style={styles.divisor} />
 
-                            )}
-
-                        </ScrollView>
-
-                        <View style={styles.pieRespuesta}>
-                            <FontAwesome
-                                name="info-circle"
-                                size={12}
-                                color="#2E7D32"
-                            />
-
-                            <Text style={styles.textoPieRespuesta}>
-                                Las recomendaciones son generadas por IA.
-                            </Text>
-                        </View>
-
-                    </View>
-
-                    {/* PREGUNTAS SUGERIDAS (Diseño 2x2 optimizado) */}
-
-                    <View style={styles.seccionPreguntas}>
-
-                        <View style={styles.filaTitulo}>
-
-                            <Text style={styles.tituloSeccion}>
-                                ¿Qué te gustaría saber?
-                            </Text>
-
-                            <FontAwesome
-                                name="lightbulb-o"
-                                size={18}
-                                color="#2E7D32"
-                            />
-
-                        </View>
-
-                        <Text style={styles.descripcionSeccion}>
-                            Selecciona una pregunta para comenzar.
-                        </Text>
-
-                        <View style={styles.contenedorPreguntas}>
-
-                            {preguntas.map((pregunta, index) => (
-
-                                <TouchableOpacity
-                                    key={index}
-                                    style={styles.botonPregunta}
-                                    onPress={() => obtenerRecomendacionIA(pregunta.texto)}
-                                    disabled={cargando}
-                                    activeOpacity={0.75}
-                                >
-
-                                    <View style={styles.iconoPregunta}>
-                                        <FontAwesome
-                                            name={pregunta.icono}
-                                            size={14}
-                                            color="#2E7D32"
-                                        />
+                            <ScrollView
+                                style={[styles.contenedorTexto, esTablet && { maxHeight: 240 }]}
+                                nestedScrollEnabled={true}
+                                showsVerticalScrollIndicator={true}
+                            >
+                                {cargando ? (
+                                    <View style={styles.cargando}>
+                                        <ActivityIndicator size="large" color="#2E7D32" />
+                                        <Text style={styles.textoCargando}>
+                                            Analizando tu consulta...
+                                        </Text>
                                     </View>
-
-                                    <Text style={styles.textoPregunta} numberOfLines={2}>
-                                        {pregunta.texto}
+                                ) : (
+                                    <Text style={[styles.textoRespuesta, esTablet && { fontSize: 15 }]}>
+                                        {respuestaIA}
                                     </Text>
+                                )}
+                            </ScrollView>
 
-                                </TouchableOpacity>
-
-                            ))}
-
+                            <View style={styles.pieRespuesta}>
+                                <FontAwesome name="info-circle" size={12} color="#2E7D32" />
+                                <Text style={styles.textoPieRespuesta}>
+                                    Las recomendaciones son generadas por IA.
+                                </Text>
+                            </View>
                         </View>
 
-                    </View>
+                        {/* PREGUNTAS SUGERIDAS (Dinámico: 2 columnas en móvil, 4 en tablet) */}
+                        <View style={styles.seccionPreguntas}>
+                            <View style={styles.filaTitulo}>
+                                <Text style={[styles.tituloSeccion, esTablet && { fontSize: 18 }]}>
+                                    ¿Qué te gustaría saber?
+                                </Text>
+                                <FontAwesome name="lightbulb-o" size={18} color="#2E7D32" />
+                            </View>
 
-                    {/* ÁREA DE CONSULTA */}
-
-                    <View style={styles.seccionConsulta}>
-
-                        <Text style={styles.tituloSeccion}>
-                            Escribe tu consulta
-                        </Text>
-
-                        <Text style={styles.descripcionSeccion}>
-                            También puedes realizar tus propias preguntas.
-                        </Text>
-
-                        <View style={styles.cuadroConsulta}>
-
-                            <FontAwesome
-                                name="pencil"
-                                size={15}
-                                color="#2E7D32"
-                                style={styles.iconoEscritura}
-                            />
-
-                            <TextInput
-                                style={styles.input}
-                                placeholder="¿En qué puedo ayudarte hoy?"
-                                placeholderTextColor="#99704F"
-                                value={consulta}
-                                onChangeText={setConsulta}
-                                multiline={true}
-                                textAlignVertical="top"
-                                editable={!cargando}
-                            />
-
-                        </View>
-
-                        <TouchableOpacity
-                            style={[
-                                styles.botonEnviar,
-                                cargando && styles.botonDeshabilitado
-                            ]}
-                            onPress={() => obtenerRecomendacionIA()}
-                            disabled={cargando}
-                            activeOpacity={0.8}
-                        >
-
-                            <FontAwesome
-                                name="send"
-                                size={15}
-                                color="#FFFFFF"
-                            />
-
-                            <Text style={styles.textoBoton}>
-                                {cargando ? 'Consultando...' : 'Consultar a la IA'}
+                            <Text style={styles.descripcionSeccion}>
+                                Selecciona una pregunta para comenzar.
                             </Text>
 
-                            {!cargando && (
-                                <FontAwesome
-                                    name="arrow-right"
-                                    size={14}
-                                    color="#E8D8C9"
-                                />
-                            )}
+                            <View style={styles.contenedorPreguntas}>
+                                {preguntas.map((pregunta, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        style={[
+                                            styles.botonPregunta,
+                                            // En tablets, acomodamos de a 2 o más compacto según prefieras (aquí 48% para que entren de 2 estilizadas o flex)
+                                            { width: esTablet ? '48%' : '48%' } 
+                                        ]}
+                                        onPress={() => obtenerRecomendacionIA(pregunta.texto)}
+                                        disabled={cargando}
+                                        activeOpacity={0.75}
+                                    >
+                                        <View style={styles.iconoPregunta}>
+                                            <FontAwesome name={pregunta.icono} size={14} color="#2E7D32" />
+                                        </View>
+                                        <Text style={[styles.textoPregunta, esTablet && { fontSize: 13, lineHeight: 18 }]} numberOfLines={2}>
+                                            {pregunta.texto}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
 
-                        </TouchableOpacity>
+                        {/* ÁREA DE CONSULTA */}
+                        <View style={styles.seccionConsulta}>
+                            <Text style={[styles.tituloSeccion, esTablet && { fontSize: 18 }]}>
+                                Escribe tu consulta
+                            </Text>
+
+                            <Text style={styles.descripcionSeccion}>
+                                También puedes realizar tus propias preguntas.
+                            </Text>
+
+                            <View style={styles.cuadroConsulta}>
+                                <FontAwesome name="pencil" size={15} color="#2E7D32" style={styles.iconoEscritura} />
+                                <TextInput
+                                    style={[styles.input, esTablet && { fontSize: 15, minHeight: 80 }]}
+                                    placeholder="¿En qué puedo ayudarte hoy?"
+                                    placeholderTextColor="#99704F"
+                                    value={consulta}
+                                    onChangeText={setConsulta}
+                                    multiline={true}
+                                    textAlignVertical="top"
+                                    editable={!cargando}
+                                />
+                            </View>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.botonEnviar,
+                                    cargando && styles.botonDeshabilitado
+                                ]}
+                                onPress={() => obtenerRecomendacionIA()}
+                                disabled={cargando}
+                                activeOpacity={0.8}
+                            >
+                                <FontAwesome name="send" size={15} color="#FFFFFF" />
+                                <Text style={[styles.textoBoton, esTablet && { fontSize: 15 }]}>
+                                    {cargando ? 'Consultando...' : 'Consultar a la IA'}
+                                </Text>
+                                {!cargando && (
+                                    <FontAwesome name="arrow-right" size={14} color="#E8D8C9" />
+                                )}
+                            </TouchableOpacity>
+                        </View>
 
                     </View>
-
-                </View>
-            </ScrollView>
+                </ScrollView>
+            </KeyboardAvoidingView>
         </View>
     );
 }
@@ -338,30 +258,26 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     contenido: {
-        paddingBottom: 25,
+        paddingBottom: 40,
         width: '100%',
-        maxWidth: '94%',
         alignSelf: 'center',
     },
     encabezado: {
-        backgroundColor: '#58391b', // Nuevo tono de café
+        backgroundColor: '#58391b',
         paddingHorizontal: 20,
-        paddingBottom: 10,
+        paddingBottom: 12,
         paddingTop: 15,
-        borderRadius: 10,
+        borderRadius: 12,
         elevation: 4,
         shadowColor: '#693c12',
         margin: 15,
         marginTop: 20,
-        
     },
-
     filaEncabezado: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
     },
-
     iconoIA: {
         width: 50,
         height: 50,
@@ -372,19 +288,16 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#4CAF50',
     },
-
     titulo: {
         fontSize: 21,
         fontWeight: 'bold',
         color: '#FFF9F2',
     },
-
     subtitulo: {
         fontSize: 11,
         color: '#E8D8C9',
         marginTop: 3,
     },
-
     estadoIA: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -398,30 +311,22 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#2E7D32',
     },
-
     puntoVerde: {
         width: 8,
         height: 8,
         borderRadius: 4,
         backgroundColor: '#4CAF50',
     },
-
     textoEstado: {
         color: '#E2F0D9',
         fontSize: 10,
         fontWeight: '600',
     },
-
-    // CUERPO PRINCIPAL
-
     cuerpoPrincipal: {
         paddingHorizontal: 16,
         marginTop: 16,
         gap: 16,
     },
-
-    // RESPUESTA IA
-
     seccionRespuesta: {
         backgroundColor: '#FFFCF8',
         padding: 20,
@@ -434,13 +339,11 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.06,
         shadowRadius: 4,
     },
-
     encabezadoRespuesta: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
     },
-
     iconoRespuesta: {
         width: 38,
         height: 38,
@@ -449,95 +352,78 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     tituloRespuesta: {
         color: '#693c12',
         fontSize: 13,
         fontWeight: 'bold',
     },
-
     subtituloRespuesta: {
         color: '#2E7D32',
         fontSize: 10,
         marginTop: 2,
         fontWeight: '600',
     },
-
     divisor: {
         height: 1,
         backgroundColor: '#E2EFE2',
         marginVertical: 12,
     },
-
     contenedorTexto: {
         maxHeight: 180,
         minHeight: 90,
     },
-
     textoRespuesta: {
         fontSize: 13.5,
         color: '#693c12',
         lineHeight: 21,
     },
-
     cargando: {
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 20,
         gap: 10,
     },
-
     textoCargando: {
         fontSize: 12,
         color: '#2E7D32',
         fontWeight: '600',
     },
-
     pieRespuesta: {
         flexDirection: 'row',
         alignItems: 'center',
         marginTop: 10,
         gap: 6,
     },
-
     textoPieRespuesta: {
         fontSize: 9.5,
         color: '#5C765D',
     },
-
-    // PREGUNTAS SUGERIDAS (Cuadrícula 2x2)
-
     seccionPreguntas: {
         gap: 6,
     },
-
     filaTitulo: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-
     tituloSeccion: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#693c12',
     },
-
     descripcionSeccion: {
         fontSize: 11.5,
         color: '#5C765D',
         marginBottom: 15,
     },
-
     contenedorPreguntas: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         gap: 12,
     },
-
     botonPregunta: {
-        width: '48%', // Distribuye en dos columnas exactas
+        width: '48%',
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFCF8',
@@ -549,7 +435,6 @@ const styles = StyleSheet.create({
         minHeight: 58,
         elevation: 1,
     },
-
     iconoPregunta: {
         width: 28,
         height: 28,
@@ -558,7 +443,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-
     textoPregunta: {
         flex: 1,
         fontSize: 11,
@@ -566,13 +450,9 @@ const styles = StyleSheet.create({
         color: '#693c12',
         lineHeight: 15,
     },
-
-    // ÁREA DE CONSULTA
-
     seccionConsulta: {
         gap: 6,
     },
-
     cuadroConsulta: {
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -585,12 +465,10 @@ const styles = StyleSheet.create({
         minHeight: 85,
         elevation: 1.5,
     },
-
     iconoEscritura: {
         marginTop: 3,
         marginRight: 8,
     },
-
     input: {
         flex: 1,
         fontSize: 13.5,
@@ -599,12 +477,11 @@ const styles = StyleSheet.create({
         padding: 0,
         lineHeight: 20,
     },
-
     botonEnviar: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#693c12', // Nuevo tono de café
+        backgroundColor: '#693c12',
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderRadius: 12,
@@ -616,15 +493,12 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 4,
     },
-
     botonDeshabilitado: {
         opacity: 0.65,
     },
-
     textoBoton: {
         color: '#FFFFFF',
         fontSize: 13.5,
         fontWeight: 'bold',
     },
-
 });
