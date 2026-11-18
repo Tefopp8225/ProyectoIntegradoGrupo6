@@ -1,20 +1,28 @@
 #include <Servo.h>
 
-// --- RIEGO ---
+// --- RIEGO Y HUMEDAD ---
 const int pinBomba = 3;
 const int pinSensorHumedad1 = A0;
 const int pinSensorHumedad2 = A1;
 
-// --- VENTANA (DOS SERVOS) ---
-Servo techoServo1;
-Servo techoServo2;
-const int pinServo1 = 2;
-const int pinServo2 = 5;
+// --- TECHO / VENTANA ---
+Servo servo360; // Pin 2: Servo de rotación continua (360°)
+Servo servo180; // Pin 6: Servo posicional (180°)
 
-const int SERVO_PARADO = 90;
-const int SERVO_ABRIR  = 0;
-const int SERVO_CERRAR = 180;
-const unsigned long TIEMPO_VENTANA = 130;
+const int pinServo360 = 2; 
+const int pinServo180 = 6; 
+
+// Calibración del Servo 360° (Invertidos para que al abrir cierre y viceversa)
+const int SERVO_360_PARADO = 90;
+const int SERVO_360_GIRAR_ABRIR = 40; // Antes era 40, ahora invierte el sentido al abrir
+const int SERVO_360_GIRAR_CERRAR = 140;   // Antes era 140, ahora invierte el sentido al cerrar
+
+// Tiempo de giro (puedes ajustarlo si necesitas más o menos recorrido)
+const unsigned long TIEMPO_GIRAR = 250; 
+
+// Posiciones para el Servo de 180°
+const int ANGULO_180_ABRIR = 90; 
+const int ANGULO_180_CERRAR = 0;
 
 void setup() {
     Serial.begin(9600);
@@ -25,11 +33,12 @@ void setup() {
 
     digitalWrite(pinBomba, LOW);
 
-    // Inicializar ambos servos detenidos
-    techoServo1.attach(pinServo1);
-    techoServo1.write(SERVO_PARADO);
-    techoServo2.attach(pinServo2);
-    techoServo2.write(SERVO_PARADO);
+    // Inicializar servos
+    servo360.attach(pinServo360);
+    servo360.write(SERVO_360_PARADO);
+
+    servo180.attach(pinServo180);
+    servo180.write(ANGULO_180_CERRAR);
 }
 
 void loop() {
@@ -50,20 +59,30 @@ void loop() {
             Serial.println("BOMBA_APAGADA");
         }
 
-        // VENTANA: ambos servos giran juntos
+        // VENTANA: ABRIR
         else if (command == "VENTANA_ABRIR") {
-            techoServo1.write(SERVO_ABRIR);
-            techoServo2.write(SERVO_CERRAR);
-            delay(TIEMPO_VENTANA);
-            techoServo1.write(SERVO_PARADO);
-            techoServo2.write(SERVO_PARADO);
+            // 1. Mover el servo de 180° a su posición abierta
+            servo180.write(ANGULO_180_ABRIR);
+            delay(50);
+            
+            // 2. Girar el de 360° con el nuevo sentido de apertura y detenerlo en 90
+            servo360.write(SERVO_360_GIRAR_ABRIR);
+            delay(TIEMPO_GIRAR);
+            servo360.write(SERVO_360_PARADO);
+            
             Serial.println("VENTANA_ABIERTA");
-        } else if (command == "VENTANA_CERRAR") {
-            techoServo1.write(SERVO_CERRAR);
-            techoServo2.write(SERVO_ABRIR);
-            delay(TIEMPO_VENTANA);
-            techoServo1.write(SERVO_PARADO);
-            techoServo2.write(SERVO_PARADO);
+        } 
+        // VENTANA: CERRAR
+        else if (command == "VENTANA_CERRAR") {
+            // 1. Regresar el servo de 180° a 0°
+            servo180.write(ANGULO_180_CERRAR);
+            delay(50);
+            
+            // 2. Girar el de 360° con el nuevo sentido de cierre y detenerlo en 90
+            servo360.write(SERVO_360_GIRAR_CERRAR);
+            delay(TIEMPO_GIRAR);
+            servo360.write(SERVO_360_PARADO);
+            
             Serial.println("VENTANA_CERRADA");
         }
     }

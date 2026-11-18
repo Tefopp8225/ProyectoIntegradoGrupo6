@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TextInput, TouchableOpacity, Alert } from 'react-native';
 
@@ -25,7 +24,7 @@ const obtenerNombreProducto = (id, nombreGuardado = '') => {
     return producto ? producto.nombre : (nombreGuardado || 'Producto desconocido');
 };
 
-const SERVER_URL = 'http://192.168.1.29:3000';
+const SERVER_URL = 'http://192.168.0.4:3000';
 
 export default function CrecimientoScreenUsu({ navigation }) {
 
@@ -444,9 +443,9 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                             <Text style={[
                                 styles.estadoLado,
-                                ladoA && styles.estadoLadoActivo
+                                ladoA ? styles.estadoLadoActivo : styles.estadoLadoInactivo
                             ]}>
-                                {ladoA ? '¡Lista para cortar!' : 'En crecimiento'}
+                                {ladoA ? '✅ ¡Creció!' : '⚠️ No creció'}
                             </Text>
 
                             {ladoA && (
@@ -479,9 +478,9 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                             <Text style={[
                                 styles.estadoLado,
-                                ladoB && styles.estadoLadoActivo
+                                ladoB ? styles.estadoLadoActivo : styles.estadoLadoInactivo
                             ]}>
-                                {ladoB ? '¡Lista para cortar!' : 'En crecimiento'}
+                                {ladoB ? '✅ ¡Creció!' : '⚠️ No creció'}
                             </Text>
 
                             {ladoB && (
@@ -668,9 +667,9 @@ const styles = StyleSheet.create({
     mensajeCrecimiento: {
         backgroundColor: '#EAF0E5',
         borderRadius: 12,
-        padding: 17,
+        padding: 12, // Reducido para que sea un poco menos grande
         alignItems: 'center',
-        marginBottom: 18,
+        marginBottom: 15,
         borderWidth: 1,
         borderColor: '#C9D6BE',
     },
@@ -681,37 +680,37 @@ const styles = StyleSheet.create({
     },
 
     iconoCrecimiento: {
-        fontSize: 38,
-        marginBottom: 8,
+        fontSize: 28, // Reducido ligeramente
+        marginBottom: 4,
     },
 
     tituloCrecimiento: {
         color: '#53634A',
-        fontSize: 18,
+        fontSize: 16, // Ligeramente más compacto
         fontWeight: 'bold',
         textAlign: 'center',
     },
 
     descripcionCrecimiento: {
         color: '#6B5142',
-        fontSize: 13,
-        lineHeight: 20,
+        fontSize: 12,
+        lineHeight: 18,
         textAlign: 'center',
-        marginTop: 8,
+        marginTop: 4,
     },
 
     contenedorLados: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        gap: 10,
+        gap: 12,
     },
 
     tarjetaLado: {
         flex: 1,
         backgroundColor: '#F8F4EF',
-        borderRadius: 12,
-        paddingVertical: 17,
-        paddingHorizontal: 8,
+        borderRadius: 14,
+        paddingVertical: 22, // Cuadros un poco más grandes y altos
+        paddingHorizontal: 12,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#E1D4C6',
@@ -724,29 +723,22 @@ const styles = StyleSheet.create({
     },
 
     iconoLado: {
-        fontSize: 32,
-        marginBottom: 7,
+        fontSize: 36, // Icono un poco más grande
+        marginBottom: 8,
     },
 
     nombreLado: {
         color: '#4A3328',
-        fontSize: 17,
+        fontSize: 18, // Fuente ligeramente más grande
         fontWeight: 'bold',
     },
 
-    distanciaLado: {
-        fontSize: 11,
-        color: '#8B6F47',
-        textAlign: 'center',
-        marginTop: 5,
-    },
-
     indicadorLado: {
-        width: 15,
-        height: 15,
+        width: 16,
+        height: 16,
         borderRadius: 20,
-        marginTop: 13,
-        marginBottom: 9,
+        marginTop: 14,
+        marginBottom: 10,
     },
 
     indicadorActivo: {
@@ -758,61 +750,25 @@ const styles = StyleSheet.create({
     },
 
     estadoLado: {
-        fontSize: 12,
+        fontSize: 13, // Texto más legible
         fontWeight: 'bold',
-        color: '#8B6F47',
         textAlign: 'center',
     },
 
     estadoLadoActivo: {
-        color: '#53634A',
+        color: '#2b9348', // Verde si creció
+    },
+
+    estadoLadoInactivo: {
+        color: '#d90429', // Rojo si no creció
     },
 
     distanciaDetectada: {
-        fontSize: 10,
+        fontSize: 11,
         color: '#53634A',
-        marginTop: 7,
+        marginTop: 8,
         textAlign: 'center',
     },
-
-    notaSensor: {
-        fontSize: 12,
-        color: '#8B6F47',
-        textAlign: 'center',
-        lineHeight: 18,
-        marginTop: 17,
-    },
-
-    informacion: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F3E9DC',
-        padding: 15,
-        borderRadius: 12,
-        marginTop: 5,
-    },
-
-    iconoInfo: {
-        fontSize: 35,
-        marginRight: 15,
-    },
-
-    textoInfo: {
-        flex: 1,
-    },
-
-    subtitulo: {
-        fontSize: 14,
-        color: '#6B5142',
-    },
-
-    valorInfo: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#8B6F47',
-        marginTop: 4,
-    },
-    
 
     pedidoItem: {
         backgroundColor: '#F8F4EF',
