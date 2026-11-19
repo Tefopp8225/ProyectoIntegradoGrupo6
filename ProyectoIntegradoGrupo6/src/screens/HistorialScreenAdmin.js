@@ -7,7 +7,7 @@ const SERVER_URL = 'http://192.168.1.29:3000';
 
 export default function HistorialScreenAdmin({ navigation }) {
 
-
+    const [conectado, setConectado] = useState(false);
     const [historial, setHistorial] = useState([]);
     const [filtro, setFiltro] = useState('Todos');
     const zonaAnterior = useRef('NINGUNA');
@@ -16,22 +16,29 @@ export default function HistorialScreenAdmin({ navigation }) {
 
         const nuevaConexion = io(SERVER_URL);
 
-    
-        // RECIBIR HISTORIAL COMPLETO
 
+        nuevaConexion.on('connect', () => {
+            setConectado(true);
+            console.log('Conectado al servidor');
+        });
+
+        nuevaConexion.on('disconnect', () => {
+            setConectado(false);
+            console.log('Desconectado del servidor');
+        });
+
+        // RECIBIR HISTORIAL COMPLETO
+        // Se excluyen las lecturas numéricas del ultrasónico.
         nuevaConexion.on('historial_data', (data) => {
 
             const registros = Array.isArray(data) ? data : [];
 
-            setHistorial(
-                registros.filter((registro) =>
-                    !String(registro.nombre || '').toLowerCase().includes('ultras')
-                )
-            );
-
+            setHistorial(registros.filter((registro) =>
+                !String(registro.nombre || '').toLowerCase().includes('ultras')
+            ));
         });
 
-        // RECIBIR NUEVOS REGISTROS
+        // RECIBIR NUEVOS REGISTROS DE SENSORES Y ACTUADORES
         nuevaConexion.on('historial_update', (data) => {
 
             if (String(data.nombre || '').toLowerCase().includes('ultras')) {
@@ -52,7 +59,7 @@ export default function HistorialScreenAdmin({ navigation }) {
 
         });
 
-        // NOTIFICACIONES DE PLANTAS A Y B
+        // NOTIFICACIONES DE CRECIMIENTO: LADO A (10 cm) O LADO B (30 cm)
         nuevaConexion.on('plant_distance', (data) => {
 
             const distancia = parseFloat(data.value);
@@ -67,7 +74,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                 zonaActual = 'B';
             }
 
-
+            // Solo se modifica el historial cuando cambia la zona detectada.
             if (zonaActual !== zonaAnterior.current) {
 
                 zonaAnterior.current = zonaActual;
@@ -85,7 +92,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                     }
 
                     const lado = zonaActual;
-
+                    
                     const nuevaNotificacion = {
                         id: `notificacion-planta-${lado}`,
                         nombre: `Planta del lado ${lado}`,
@@ -94,11 +101,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                         fecha: new Date().toISOString()
                     };
 
-                    return [
-                        nuevaNotificacion,
-                        ...sinNotificacionAnterior
-                    ].slice(0, 100);
-
+                    return [nuevaNotificacion, ...sinNotificacionAnterior].slice(0, 100);
                 });
 
             }
@@ -111,7 +114,7 @@ export default function HistorialScreenAdmin({ navigation }) {
 
     }, []);
 
-    // ELIMINAR REGISTRO
+    // ELIMINAR UNA NOTIFICACIÓN DEL HISTORIAL
     const eliminarRegistro = (id) => {
 
         setHistorial((historialAnterior) =>
@@ -131,7 +134,51 @@ export default function HistorialScreenAdmin({ navigation }) {
 
     });
 
+    // OBTENER EL ULTIMO REGISTRO DE UN ELEMENTO
 
+    const obtenerUltimo = (nombre) => {
+
+        return historial.find((registro) =>
+            registro.nombre === nombre
+        );
+
+    };
+
+    // OBTENER TODOS LOS SENSORES REGISTRADOS
+    const sensores = historial.filter((registro) =>
+        registro.tipo === 'Sensor'
+    );
+
+    const actuadores = historial.filter((registro) =>
+        registro.tipo === 'Actuador'
+    );
+
+    // OBTENER LOS ULTIMOS REGISTROS DE CADA SENSOR
+
+    const ultimosSensores = sensores.filter((registro, index, lista) =>
+        lista.findIndex((elemento) =>
+            elemento.nombre === registro.nombre
+        ) === index
+    );
+
+    // OBTENER LOS ULTIMOS REGISTROS DE CADA ACTUADOR
+
+    const ultimosActuadores = actuadores.filter((registro, index, lista) =>
+        lista.findIndex((elemento) =>
+            elemento.nombre === registro.nombre
+        ) === index
+    );
+
+    // MOSTRAR VALOR
+    const mostrarValor = (registro) => {
+
+        if (!registro) {
+            return 'Sin registros';
+        }
+
+        return registro.valor;
+
+    };
 
     // MOSTRAR FECHA
     const mostrarFecha = (fecha) => {
@@ -145,20 +192,20 @@ export default function HistorialScreenAdmin({ navigation }) {
     };
 
     // IDENTIFICAR ICONO
-    
+
     const obtenerIcono = (registro) => {
 
         if (registro.tipo === 'Sensor') {
 
-            if (registro.nombre.toLowerCase().includes('ultrasónico')) {
+            if (registro.nombre.includes('ultrasónico')) {
                 return '📏';
             }
 
-            if (registro.nombre.toLowerCase().includes('humedad')) {
+            if (registro.nombre.includes('humedad')) {
                 return '💧';
             }
 
-            if (registro.nombre.toLowerCase().includes('temperatura')) {
+            if (registro.nombre.includes('Temperatura')) {
                 return '🌡️';
             }
 
@@ -184,7 +231,51 @@ export default function HistorialScreenAdmin({ navigation }) {
 
         return '⚙️';
 
+    };
 
+    // MOSTRAR ELEMENTO DEL HISTORIAL
+
+    const mostrarElemento = (registro) => {
+
+        return (
+
+            <View
+                style={styles.elemento}
+                key={registro.id}
+            >
+            
+
+
+                <View style={styles.elementoEncabezado}>
+
+                    <Text style={styles.iconoElemento}>
+                        {obtenerIcono(registro)}
+                    </Text>
+
+                    <Text style={styles.nombreElemento}>
+                        {registro.nombre}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={styles.botonEliminar}
+                        onPress={() => eliminarRegistro(registro.id)}
+                    >
+                        <Text style={styles.textoEliminar}>×</Text>
+                    </TouchableOpacity>
+
+                </View>
+
+                <Text style={styles.valorElemento}>
+                    {registro.valor}
+                </Text>
+
+                <Text style={styles.fechaElemento}>
+                    {mostrarFecha(registro.fecha)}
+                </Text>
+
+            </View>
+
+        );
 
     };
 
@@ -197,31 +288,105 @@ export default function HistorialScreenAdmin({ navigation }) {
                 contentContainerStyle={styles.contenidoScroll}
             >
 
-                {/* REGISTROS DEL INVERNADERO */}
+                {/* PRESENTACION */}
+
+                <View style={styles.presentacion}>
+
+                    <Text style={styles.icono}>📋</Text>
+
+                    <View style={styles.textoPresentacion}>
+
+                        <Text style={styles.tituloPresentacion}>
+                            Historial
+                        </Text>
+
+                        <Text style={styles.descripcion}>
+                            Consulta los registros de sensores y actuadores
+                            del invernadero.
+                        </Text>
+
+                    </View>
+
+                </View>
+
+                {/* ESTADO DEL SISTEMA */}
 
                 <View style={styles.card}>
 
-                    <View style={styles.encabezado}>
+                    <Text style={styles.titulo}>
+                        Estado del sistema
+                    </Text>
 
-                        <Text style={styles.iconoTitulo}>
-                            📋
-                        </Text>
+                    <Text style={[
+                        styles.estado,
+                        conectado ? styles.conectado : styles.desconectado
+                    ]}>
 
-                        <View style={styles.encabezadoTexto}>
+                        {conectado ? '🟢 Conectado' : '🔴 Desconectado'}
 
-                            <Text style={styles.titulo}>
-                                Registros del invernadero
+                    </Text>
+
+                    <View style={styles.resumen}>
+
+                        <View style={styles.resumenItem}>
+
+                            <Text style={styles.iconoResumen}>
+                                📊
                             </Text>
 
-                            <Text style={styles.descripcion}>
-                                Consulta los registros y notificaciones del sistema.
+                            <Text style={styles.valorResumen}>
+                                {historial.length}
+                            </Text>
+
+                            <Text style={styles.textoResumen}>
+                                Registros
+                            </Text>
+
+                        </View>
+
+                        <View style={styles.resumenItem}>
+
+                            <Text style={styles.iconoResumen}>
+                                📡
+                            </Text>
+
+                            <Text style={styles.valorResumen}>
+                                {sensores.length}
+                            </Text>
+
+                            <Text style={styles.textoResumen}>
+                                Sensores
+                            </Text>
+
+                        </View>
+
+                        <View style={styles.resumenItem}>
+
+                            <Text style={styles.iconoResumen}>
+                                ⚙️
+                            </Text>
+
+                            <Text style={styles.valorResumen}>
+                                {actuadores.length}
+                            </Text>
+
+                            <Text style={styles.textoResumen}>
+                                Actuadores
                             </Text>
 
                         </View>
 
                     </View>
 
+                </View>
 
+                {/* HISTORIAL COMPLETO */}
+
+                <View style={styles.card}>
+
+                    <Text style={styles.titulo}>
+                        Registros del invernadero
+                    </Text>
 
                     {/* FILTROS */}
 
@@ -271,7 +436,7 @@ export default function HistorialScreenAdmin({ navigation }) {
 
                             <Text style={[
                                 styles.textoFiltro,
-                                filtro === 'Actuador' && styles.textoFiltroActivo
+                                filtro === 'Actuador' && styles.filtroActivo
                             ]}>
                                 Actuadores
                             </Text>
@@ -336,11 +501,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                                         style={styles.botonEliminar}
                                         onPress={() => eliminarRegistro(registro.id)}
                                     >
-
-                                        <Text style={styles.textoEliminar}>
-                                            ×
-                                        </Text>
-
+                                        <Text style={styles.textoEliminar}>×</Text>
                                     </TouchableOpacity>
 
                                 </View>
@@ -393,7 +554,38 @@ const styles = StyleSheet.create({
         paddingBottom: 30,
     },
 
+    presentacion: {
+        backgroundColor: '#5C4033',
+        borderRadius: 15,
+        padding: 18,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#CBB196',
+    },
 
+    icono: {
+        fontSize: 40,
+        marginRight: 15,
+    },
+
+    textoPresentacion: {
+        flex: 1,
+    },
+
+    tituloPresentacion: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#E8D5C0',
+        marginBottom: 5,
+    },
+
+    descripcion: {
+        fontSize: 14,
+        color: 'white',
+        lineHeight: 20,
+    },
 
     card: {
         backgroundColor: 'white',
@@ -404,37 +596,108 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.12,
         shadowRadius: 8,
         elevation: 5,
-
+        marginTop: 20,
         borderWidth: 1,
         borderColor: '#E1D4C6',
     },
 
-    encabezado: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    titulo: {
+        fontSize: 23,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 15,
+        color: '#4A3328',
+    },
+
+    estado: {
+        textAlign: 'center',
+        fontSize: 14,
+        padding: 10,
+        borderRadius: 10,
         marginBottom: 20,
+        fontWeight: '500',
     },
 
-    iconoTitulo: {
-        fontSize: 35,
-        marginRight: 12,
+    conectado: {
+        backgroundColor: '#E3E8DE',
+        color: '#53634A',
     },
 
-    encabezadoTexto: {
+    desconectado: {
+        backgroundColor: '#EBDDD5',
+        color: '#8A5140',
+    },
+
+    resumen: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        backgroundColor: '#F3E9DC',
+        borderRadius: 12,
+        padding: 15,
+    },
+
+    resumenItem: {
+        alignItems: 'center',
         flex: 1,
     },
 
-    titulo: {
-        fontSize: 21,
+    iconoResumen: {
+        fontSize: 25,
+        marginBottom: 5,
+    },
+
+    valorResumen: {
+        fontSize: 25,
+        fontWeight: 'bold',
+        color: '#8B6F47',
+    },
+
+    textoResumen: {
+        fontSize: 12,
+        color: '#6B5142',
+        marginTop: 4,
+    },
+
+    elemento: {
+
+        backgroundColor: '#F3E9DC',
+        borderRadius: 12,
+        padding: 15,
+        marginTop: 10,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
+
+    elementoEncabezado: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+
+    iconoElemento: {
+        fontSize: 23,
+        marginRight: 10,
+    },
+
+    nombreElemento: {
+        flex: 1,
+
+        fontSize: 14,
         fontWeight: 'bold',
         color: '#4A3328',
     },
 
-    descripcion: {
-        fontSize: 12,
+    valorElemento: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#8B6F47',
+        marginTop: 10,
+    },
+
+    fechaElemento: {
+        fontSize: 10,
         color: '#6B5142',
         marginTop: 5,
-        lineHeight: 18,
+
     },
 
     filtros: {
@@ -466,14 +729,29 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
+    botonEliminar: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#EBDDD5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
+    },
 
+    textoEliminar: {
+        color: '#8A5140',
+        fontSize: 22,
+        fontWeight: 'bold',
+        lineHeight: 25,
+    },
 
     registro: {
 
         backgroundColor: '#F3E9DC',
         borderRadius: 12,
         paddingHorizontal: 15,
-        paddingVertical: 12,
+        paddingVertical: 10,
         marginTop: 12,
         borderWidth: 1,
         borderColor: '#E1D4C6',
@@ -495,10 +773,10 @@ const styles = StyleSheet.create({
     },
 
     nombreRegistro: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: 'bold',
         color: '#4A3328',
-
+        marginTop: 5,
     },
 
     tipoRegistro: {
@@ -506,28 +784,12 @@ const styles = StyleSheet.create({
         color: '#8B6F47',
         marginTop: 5,
     },
-
-    botonEliminar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: '#EBDDD5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginLeft: 8,
-    },
-
-    textoEliminar: {
-        color: '#8A5140',
-        fontSize: 22,
-        fontWeight: 'bold',
-        lineHeight: 25,
-    },
+    
 
     valorRegistroContainer: {
         marginTop: 10,
         backgroundColor: 'white',
-        padding: 10,
+        padding: 8,
         borderRadius: 10,
     },
 
@@ -546,12 +808,13 @@ const styles = StyleSheet.create({
     fechaRegistro: {
         fontSize: 10,
         color: '#6B5142',
-        marginTop: 8,
+        marginTop: 6,
+        marginBottom: 6,
     },
 
     sinRegistros: {
         alignItems: 'center',
-        padding: 25,
+        padding: 20,
         backgroundColor: '#F3E9DC',
         borderRadius: 12,
     },
