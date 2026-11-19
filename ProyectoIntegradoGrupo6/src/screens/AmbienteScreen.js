@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 
-const SERVER_URL = 'http://192.168.0.4:3000';
+const SERVER_URL = 'http://192.168.1.29:3000';
 
 export default function AmbienteScreen({ navigation }) {
     const [socket, setSocket] = useState(null);

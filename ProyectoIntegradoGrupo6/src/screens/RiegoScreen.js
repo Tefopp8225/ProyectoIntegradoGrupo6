@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, ScrollVi
 import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-const SERVER_URL = 'http://192.168.0.4:3000';
+const SERVER_URL = 'http://192.168.1.29:3000';
 
 export default function RiegoScreen({ navigation }) {
     const [socket, setSocket] = useState(null);
