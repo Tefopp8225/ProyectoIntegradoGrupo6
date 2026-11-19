@@ -31,11 +31,12 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
     const [conectado, setConectado] = useState(false);
 
-    // Distancia detectada por el sensor ultrasónico
+
     const [sensorDistance, setSensorDistance] = useState(null);
 
-    // Estado de los dos lados
+
     const [ladoA, setLadoA] = useState(false);
+
     const [ladoB, setLadoB] = useState(false);
 
     const [inventario, setInventario] = useState([]);
@@ -57,7 +58,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
             console.log('Desconectado del servidor');
         });
 
-        // Recibir distancia del sensor
+
         nuevaConexion.on('plant_distance', (data) => {
 
             const distancia = parseFloat(data.value);
@@ -68,26 +69,26 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
             setSensorDistance(distancia);
 
-            // Si no detecta nada o supera los 40 cm
+
             if (distancia <= 0 || distancia > 40) {
                 setLadoA(false);
                 setLadoB(false);
                 return;
             }
 
-            // LADO A: aproximadamente 10 cm
+
             if (distancia >= 7 && distancia <= 13) {
                 setLadoA(true);
                 setLadoB(false);
             }
 
-            // LADO B: aproximadamente 30 cm
+
             else if (distancia >= 27 && distancia <= 33) {
                 setLadoA(false);
                 setLadoB(true);
             }
 
-            // Si está dentro de 40 cm pero fuera de las zonas
+
             else {
                 setLadoA(false);
                 setLadoB(false);
@@ -352,7 +353,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
     };
 
-    // DETERMINAR SI ALGUNO DE LOS LADOS ESTÁ LISTO
+
     const plantaLista = ladoA || ladoB;
 
     return (
@@ -383,6 +384,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                 </View>
 
+                {/* ESTADO DE LAS PLANTAS */}
                 <View style={styles.card}>
 
                     <Text style={styles.titulo}>
@@ -419,7 +421,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                     </View>
 
-                    {/* LADO A Y LADO B */}
+
                     <View style={styles.contenedorLados}>
 
                         {/* LADO A */}
@@ -428,9 +430,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                             ladoA && styles.tarjetaDetectada
                         ]}>
 
-                            <Text style={styles.iconoLado}>
-                                🌿
-                            </Text>
+                            <Text style={styles.iconoLado}>🌿</Text>
 
                             <Text style={styles.nombreLado}>
                                 LADO A
@@ -463,9 +463,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                             ladoB && styles.tarjetaDetectada
                         ]}>
 
-                            <Text style={styles.iconoLado}>
-                                🌿
-                            </Text>
+                            <Text style={styles.iconoLado}>🌿</Text>
 
                             <Text style={styles.nombreLado}>
                                 LADO B
@@ -493,7 +491,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                         </View>
 
                     </View>
-                    
+
 
                 </View>
 
@@ -535,11 +533,11 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                         </Text>
 
                                         <Text style={styles.estadoPedido}>
-                                            Estado: En camino
+                                            ● En camino
                                         </Text>
 
                                         <Text style={styles.cantidadMaterial}>
-                                            Pedido: {compra.fecha}
+                                            Pedido: {compra.fecha ? new Date(compra.fecha).toLocaleDateString('es-GT') : ''}
                                         </Text>
 
                                     </View>
@@ -554,10 +552,94 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                 >
 
                                     <Text style={styles.textoBotonRecibir}>
-                                        Compra recibida
+                                        ✓  Confirmar pedido recibido
                                     </Text>
 
                                 </TouchableOpacity>
+
+                            </View>
+
+                        ))
+
+                    )}
+
+                </View>
+
+                {/* INVENTARIO DE MATERIALES */}
+                <View style={styles.card}>
+
+                    <Text style={styles.titulo}>
+                        Inventario de materiales
+                    </Text>
+
+                    <Text style={styles.descripcionInventario}>
+                        Consulta las existencias y registra los materiales que utilizas.
+                    </Text>
+
+                    {inventario.length === 0 ? (
+
+                        <View style={styles.registroPendiente}>
+                            <Text style={styles.iconoRegistro}>📦</Text>
+                            <Text style={styles.textoRegistro}>
+                                No hay materiales disponibles en el inventario.
+                            </Text>
+                        </View>
+
+                    ) : (
+
+                        inventario.map((producto) => (
+
+                            <View key={producto.id} style={styles.inventarioItem}>
+
+                                <View style={styles.inventarioEncabezado}>
+
+                                    <View style={styles.textoInfo}>
+                                        <Text style={styles.nombreMaterial}>
+                                            {obtenerNombreProducto(producto.id, producto.nombre)}
+                                        </Text>
+
+                                        <Text style={styles.cantidadMaterial}>
+                                            Cantidad disponible
+                                        </Text>
+                                    </View>
+
+                                    <View style={styles.cantidadDisponible}>
+                                        <Text style={styles.numeroDisponible}>
+                                            {Number(producto.cantidad) || 0}
+                                        </Text>
+
+                                        <Text style={styles.unidadesDisponible}>
+                                            unidades
+                                        </Text>
+                                    </View>
+
+                                </View>
+
+                                <View style={styles.filaUso}>
+
+                                    <TextInput
+                                        style={styles.inputCantidadUso}
+                                        placeholder="Cantidad a usar"
+                                        placeholderTextColor="#A1887F"
+                                        value={cantidadesUso[producto.id] || ''}
+                                        onChangeText={(valor) => cambiarCantidadUso(producto.id, valor)}
+                                        keyboardType="numeric"
+                                    />
+
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.botonUsar,
+                                            Number(producto.cantidad) <= 0 && styles.botonDeshabilitado
+                                        ]}
+                                        onPress={() => usarMaterial(producto)}
+                                        disabled={Number(producto.cantidad) <= 0}
+                                    >
+                                        <Text style={styles.textoBotonUsar}>
+                                            Usar
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                </View>
 
                             </View>
 
@@ -816,11 +898,160 @@ const styles = StyleSheet.create({
 
     pedidoItem: {
         backgroundColor: '#F8F4EF',
-        padding: 13,
-        borderRadius: 10,
+        padding: 15,
+        borderRadius: 12,
         marginTop: 12,
         borderWidth: 1,
         borderColor: '#E1D4C6',
+    },
+
+    pedidoEncabezado: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    nombreMaterial: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#4A3328',
+        marginBottom: 5,
+    },
+
+    cantidadMaterial: {
+        fontSize: 13,
+        color: '#8B6F47',
+        marginTop: 3,
+    },
+
+    estadoPedido: {
+        fontSize: 13,
+        color: '#B7791F',
+        fontWeight: 'bold',
+        marginTop: 5,
+    },
+
+    iconoPedido: {
+        fontSize: 32,
+        marginLeft: 10,
+    },
+
+    botonRecibir: {
+        backgroundColor: '#53634A',
+        paddingVertical: 12,
+        paddingHorizontal: 15,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginTop: 14,
+    },
+
+    textoBotonRecibir: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+
+    registroPendiente: {
+        backgroundColor: '#F8F4EF',
+        borderRadius: 12,
+        padding: 18,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
+
+    iconoRegistro: {
+        fontSize: 30,
+        marginBottom: 8,
+    },
+
+    textoRegistro: {
+        color: '#8B6F47',
+        fontSize: 13,
+        textAlign: 'center',
+        lineHeight: 19,
+    },
+
+    descripcionInventario: {
+        color: '#8B6F47',
+        fontSize: 13,
+        textAlign: 'center',
+        lineHeight: 19,
+        marginTop: -7,
+        marginBottom: 10,
+    },
+
+    inventarioItem: {
+        backgroundColor: '#F8F4EF',
+        padding: 14,
+        borderRadius: 12,
+        marginTop: 11,
+        borderWidth: 1,
+        borderColor: '#E1D4C6',
+    },
+
+    inventarioEncabezado: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+
+    cantidadDisponible: {
+        minWidth: 75,
+        backgroundColor: '#EAF0E5',
+        borderRadius: 10,
+        paddingVertical: 8,
+        paddingHorizontal: 10,
+        alignItems: 'center',
+    },
+
+    numeroDisponible: {
+        fontSize: 21,
+        fontWeight: 'bold',
+        color: '#53634A',
+    },
+
+    unidadesDisponible: {
+        fontSize: 10,
+        color: '#6B5142',
+    },
+
+    filaUso: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+        gap: 9,
+    },
+
+    inputCantidadUso: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#D7C7B8',
+        borderRadius: 9,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: '#FFFFFF',
+        color: '#4A3328',
+        fontSize: 14,
+    },
+
+    botonUsar: {
+        backgroundColor: '#8B6F47',
+        paddingVertical: 12,
+        paddingHorizontal: 22,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    botonDeshabilitado: {
+        backgroundColor: '#BDB5AD',
+    },
+
+    textoBotonUsar: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
 
 });
