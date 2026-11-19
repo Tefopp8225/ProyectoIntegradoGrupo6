@@ -1,21 +1,21 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import io from 'socket.io-client';
 
-const SERVER_URL = 'http://192.168.0.4:3000';
+const SERVER_URL = 'http://192.168.1.29:3000';
 
 export default function HistorialScreenAdmin({ navigation }) {
 
     const [conectado, setConectado] = useState(false);
     const [historial, setHistorial] = useState([]);
     const [filtro, setFiltro] = useState('Todos');
-    const [eliminados, setEliminados] = useState([]);
-    const socketRef = useRef(null);
+    const zonaAnterior = useRef('NINGUNA');
 
     useEffect(() => {
 
         const nuevaConexion = io(SERVER_URL);
-        socketRef.current = nuevaConexion;
+
 
         nuevaConexion.on('connect', () => {
             setConectado(true);
@@ -28,38 +28,132 @@ export default function HistorialScreenAdmin({ navigation }) {
         });
 
         // RECIBIR HISTORIAL COMPLETO
-
+        // Se excluyen las lecturas numéricas del ultrasónico.
         nuevaConexion.on('historial_data', (data) => {
+            const registros = Array.isArray(data) ? data : [];
 
-            setHistorial(data);
-
+            setHistorial(registros.filter((registro) =>
+                !String(registro.nombre || '').toLowerCase().includes('ultras')
+            ));
         });
 
-        
-
-        // RECIBIR NUEVOS REGISTROS
+        // RECIBIR NUEVOS REGISTROS DE SENSORES Y ACTUADORES
         nuevaConexion.on('historial_update', (data) => {
+            if (String(data.nombre || '').toLowerCase().includes('ultras')) {
+                return;
+            }
 
             setHistorial((historialAnterior) => {
-
-                // EVITAR REGISTROS DUPLICADOS
-                if (historialAnterior.some((registro) => registro.id === data.id)) {
+                if (historialAnterior.some((registro) =>
+                    registro.id === data.id
+                )) {
                     return historialAnterior;
                 }
 
                 return [data, ...historialAnterior].slice(0, 100);
-
             });
+        });
 
+        // NOTIFICACIONES DE CRECIMIENTO: LADO A (10 cm) O LADO B (30 cm)
+        nuevaConexion.on('plant_distance', (data) => {
+            const distancia = parseFloat(data.value);
+            if (!Number.isFinite(distancia)) return;
+
+            let zonaActual = 'NINGUNA';
+
+            if (distancia >= 7 && distancia <= 13) {
+                zonaActual = 'A';
+            } else if (distancia >= 27 && distancia <= 33) {
+                zonaActual = 'B';
+            }
+
+            // Solo se modifica el historial cuando cambia la zona detectada.
+            if (zonaActual !== zonaAnterior.current) {
+                zonaAnterior.current = zonaActual;
+
+                setHistorial((historialAnterior) => {
+                    const sinNotificacionAnterior = historialAnterior.filter(
+                        (registro) =>
+                            registro.id !== 'notificacion-planta-A' &&
+                            registro.id !== 'notificacion-planta-B'
+                    );
+
+                    if (zonaActual === 'NINGUNA') {
+                        return sinNotificacionAnterior;
+                    }
+
+                    const lado = zonaActual;
+                    const nuevaNotificacion = {
+                        id: `notificacion-planta-${lado}`,
+                        nombre: `Planta del lado ${lado}`,
+                        tipo: 'Sensor',
+                        valor: `¡La planta del lado ${lado} alcanzó la zona de corte y está lista para cortar!`,
+                        fecha: new Date().toISOString()
+                    };
+
+                    return [nuevaNotificacion, ...sinNotificacionAnterior].slice(0, 100);
+                });
+            }
         });
 
         return () => {
-            
             nuevaConexion.disconnect();
-
         };
 
     }, []);
+
+    // ELIMINAR UNA NOTIFICACIÓN DEL HISTORIAL
+    const eliminarRegistro = (id) => {
+        setHistorial((historialAnterior) =>
+            historialAnterior.filter((registro) => registro.id !== id)
+        );
+    };
+
+    // FILTRAR REGISTROS
+    const historialFiltrado = historial.filter((registro) => {
+
+        if (filtro === 'Todos') {
+            return true;
+        }
+
+        return registro.tipo === filtro;
+
+    });
+
+    // OBTENER EL ULTIMO REGISTRO DE UN ELEMENTO
+
+    const obtenerUltimo = (nombre) => {
+
+        return historial.find((registro) =>
+            registro.nombre === nombre
+        );
+
+    };
+
+    // OBTENER TODOS LOS SENSORES REGISTRADOS
+    const sensores = historial.filter((registro) =>
+        registro.tipo === 'Sensor'
+    );
+
+    const actuadores = historial.filter((registro) =>
+        registro.tipo === 'Actuador'
+    );
+
+    // OBTENER LOS ULTIMOS REGISTROS DE CADA SENSOR
+
+    const ultimosSensores = sensores.filter((registro, index, lista) =>
+        lista.findIndex((elemento) =>
+            elemento.nombre === registro.nombre
+        ) === index
+    );
+
+    // OBTENER LOS ULTIMOS REGISTROS DE CADA ACTUADOR
+
+    const ultimosActuadores = actuadores.filter((registro, index, lista) =>
+        lista.findIndex((elemento) =>
+            elemento.nombre === registro.nombre
+        ) === index
+    );
 
     // MOSTRAR VALOR
     const mostrarValor = (registro) => {
@@ -83,141 +177,14 @@ export default function HistorialScreenAdmin({ navigation }) {
 
     };
 
-    // IDENTIFICAR SENSOR ULTRASÓNICO
-    const esUltrasonico = (registro) =>
-        registro.tipo === 'Sensor' &&
-        registro.nombre.toLowerCase().includes('ultras');
-
-    // DETECTAR LADO SEGÚN LA DISTANCIA (mismos rangos que Crecimiento)
-    const obtenerLado = (valor) => {
-
-        const distancia = parseFloat(valor);
-
-        if (!Number.isFinite(distancia)) return null;
-        if (distancia >= 7 && distancia <= 13) return 'A';
-        if (distancia >= 27 && distancia <= 33) return 'B';
-
-        return null;
-
-    };
-
-    // ÚLTIMA LECTURA DEL ULTRASÓNICO (el historial viene del más nuevo al más viejo)
-    const ultimoUltrasonico = historial.find(esUltrasonico);
-
-    const ladoDetectado = ultimoUltrasonico
-        ? obtenerLado(ultimoUltrasonico.valor)
-        : null;
-
-    // HISTORIAL LIMPIO:
-    // - sin los registros eliminados con la X
-    // - del ultrasónico solo queda la última lectura, y solo si sigue detectando la planta
-    const historialLimpio = historial.filter((registro) => {
-
-        if (eliminados.includes(registro.id)) {
-            return false;
-        }
-
-        if (esUltrasonico(registro)) {
-            return ladoDetectado !== null && registro.id === ultimoUltrasonico.id;
-        }
-
-        return true;
-
-    });
-
-    // TEXTO A MOSTRAR COMO VALOR
-    const obtenerTextoValor = (registro) => {
-
-        if (esUltrasonico(registro)) {
-            const lado = obtenerLado(registro.valor);
-            return lado ? `¡Lado ${lado} listo para cortar!` : 'Sin detección';
-        }
-
-        return mostrarValor(registro);
-
-    };
-
-    // ELIMINAR UN REGISTRO
-    const eliminarRegistro = (id) => {
-
-        setEliminados((anteriores) => [...anteriores, id]);
-
-        if (socketRef.current) {
-            socketRef.current.emit('historial_eliminar', id);
-        }
-
-    };
-
-    // LIMPIAR TODO EL HISTORIAL
-    const limpiarHistorial = () => {
-
-        setEliminados((anteriores) => [
-            ...anteriores,
-            ...historialLimpio.map((registro) => registro.id)
-        ]);
-
-        if (socketRef.current) {
-            socketRef.current.emit('historial_limpiar');
-        }
-
-    };
-
-    // FILTRAR REGISTROS
-    const historialFiltrado = historialLimpio.filter((registro) => {
-
-        if (filtro === 'Todos') {
-            return true;
-        }
-
-        return registro.tipo === filtro;
-
-    });
-
-    // OBTENER EL ULTIMO REGISTRO DE UN ELEMENTO
-
-    const obtenerUltimo = (nombre) => {
-
-        return historialLimpio.find((registro) =>
-            registro.nombre === nombre
-        );
-
-    };
-
-    // OBTENER TODOS LOS SENSORES Y ACTUADORES REGISTRADOS
-    const sensores = historialLimpio.filter((registro) =>
-        registro.tipo === 'Sensor'
-    );
-
-    const actuadores = historialLimpio.filter((registro) =>
-        registro.tipo === 'Actuador'
-    );
-
-    // OBTENER LOS ULTIMOS REGISTROS DE CADA SENSOR
-
-    const ultimosSensores = sensores.filter((registro, index, lista) =>
-        lista.findIndex((elemento) =>
-            elemento.nombre === registro.nombre
-        ) === index
-    );
-
-    // OBTENER LOS ULTIMOS REGISTROS DE CADA ACTUADOR
-
-    const ultimosActuadores = actuadores.filter((registro, index, lista) =>
-        lista.findIndex((elemento) =>
-            elemento.nombre === registro.nombre
-        ) === index
-    );
-
-
-
     // IDENTIFICAR ICONO
 
     const obtenerIcono = (registro) => {
 
         if (registro.tipo === 'Sensor') {
 
-            if (esUltrasonico(registro)) {
-                return '🌾';
+            if (registro.nombre.includes('ultrasónico')) {
+                return '📏';
             }
 
             if (registro.nombre.includes('humedad')) {
@@ -262,13 +229,8 @@ export default function HistorialScreenAdmin({ navigation }) {
                 style={styles.elemento}
                 key={registro.id}
             >
+            
 
-                <TouchableOpacity
-                    style={styles.botonEliminar}
-                    onPress={() => eliminarRegistro(registro.id)}
-                >
-                    <Text style={styles.textoEliminar}>✕</Text>
-                </TouchableOpacity>
 
                 <View style={styles.elementoEncabezado}>
 
@@ -280,10 +242,17 @@ export default function HistorialScreenAdmin({ navigation }) {
                         {registro.nombre}
                     </Text>
 
+                    <TouchableOpacity
+                        style={styles.botonEliminar}
+                        onPress={() => eliminarRegistro(registro.id)}
+                    >
+                        <Text style={styles.textoEliminar}>×</Text>
+                    </TouchableOpacity>
+
                 </View>
 
                 <Text style={styles.valorElemento}>
-                    {obtenerTextoValor(registro)}
+                    {registro.valor}
                 </Text>
 
                 <Text style={styles.fechaElemento}>
@@ -352,7 +321,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                             </Text>
 
                             <Text style={styles.valorResumen}>
-                                {historialLimpio.length}
+                                {historial.length}
                             </Text>
 
                             <Text style={styles.textoResumen}>
@@ -528,7 +497,7 @@ export default function HistorialScreenAdmin({ navigation }) {
 
                             <Text style={[
                                 styles.textoFiltro,
-                                filtro === 'Actuador' && styles.textoFiltroActivo
+                                filtro === 'Actuador' && styles.filtroActivo
                             ]}>
                                 Actuadores
                             </Text>
@@ -537,20 +506,7 @@ export default function HistorialScreenAdmin({ navigation }) {
 
                     </View>
 
-                    {/* BOTÓN LIMPIAR TODO */}
 
-                    {historialFiltrado.length > 0 && (
-
-                        <TouchableOpacity
-                            style={styles.botonLimpiar}
-                            onPress={limpiarHistorial}
-                        >
-                            <Text style={styles.textoLimpiar}>
-                                🗑️ Limpiar todo
-                            </Text>
-                        </TouchableOpacity>
-
-                    )}
 
                     {/* LISTA DE REGISTROS */}
 
@@ -582,12 +538,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                                 key={registro.id || index}
                             >
 
-                                <TouchableOpacity
-                                    style={styles.botonEliminar}
-                                    onPress={() => eliminarRegistro(registro.id)}
-                                >
-                                    <Text style={styles.textoEliminar}>✕</Text>
-                                </TouchableOpacity>
+
 
                                 <View style={styles.registroEncabezado}>
 
@@ -607,6 +558,13 @@ export default function HistorialScreenAdmin({ navigation }) {
 
                                     </View>
 
+                                    <TouchableOpacity
+                                        style={styles.botonEliminar}
+                                        onPress={() => eliminarRegistro(registro.id)}
+                                    >
+                                        <Text style={styles.textoEliminar}>×</Text>
+                                    </TouchableOpacity>
+
                                 </View>
 
                                 <View style={styles.valorRegistroContainer}>
@@ -616,7 +574,7 @@ export default function HistorialScreenAdmin({ navigation }) {
                                     </Text>
 
                                     <Text style={styles.valorRegistro}>
-                                        {obtenerTextoValor(registro)}
+                                        {registro.valor}
                                     </Text>
 
                                 </View>
@@ -762,7 +720,7 @@ const styles = StyleSheet.create({
     },
 
     elemento: {
-        position: 'relative',
+
         backgroundColor: '#F3E9DC',
         borderRadius: 12,
         padding: 15,
@@ -783,7 +741,7 @@ const styles = StyleSheet.create({
 
     nombreElemento: {
         flex: 1,
-        paddingRight: 28,
+
         fontSize: 14,
         fontWeight: 'bold',
         color: '#4A3328',
@@ -831,8 +789,25 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
+    botonEliminar: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#EBDDD5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 8,
+    },
+
+    textoEliminar: {
+        color: '#8A5140',
+        fontSize: 22,
+        fontWeight: 'bold',
+        lineHeight: 25,
+    },
+
     registro: {
-        position: 'relative',
+
         backgroundColor: '#F3E9DC',
         borderRadius: 12,
         paddingHorizontal: 15,
@@ -854,7 +829,7 @@ const styles = StyleSheet.create({
 
     textoRegistro: {
         flex: 1,
-        paddingRight: 28,
+
     },
 
     nombreRegistro: {
@@ -921,40 +896,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 20,
         marginTop: 8,
-    },
-
-    botonEliminar: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: '#EBDDD5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-    },
-
-    textoEliminar: {
-        color: '#8A5140',
-        fontSize: 13,
-        fontWeight: 'bold',
-    },
-
-    botonLimpiar: {
-        alignSelf: 'flex-end',
-        backgroundColor: '#EBDDD5',
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 10,
-        marginBottom: 5,
-    },
-
-    textoLimpiar: {
-        color: '#8A5140',
-        fontSize: 12,
-        fontWeight: 'bold',
     },
 
 });
