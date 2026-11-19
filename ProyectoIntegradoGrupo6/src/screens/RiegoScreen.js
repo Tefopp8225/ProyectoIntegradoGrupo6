@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Alert, ScrollView } from 'react-native';
 import io from 'socket.io-client';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import MaterialCommunityIcons2 from '@expo/vector-icons/MaterialCommunityIcons';
 
-const SERVER_URL = 'http://192.168.0.32:3000';
+const SERVER_URL = 'http://192.168.0.4:3000';
 
 export default function RiegoScreen({ navigation }) {
     const [socket, setSocket] = useState(null);
@@ -12,7 +11,7 @@ export default function RiegoScreen({ navigation }) {
     const [sensor2HumedadValue, setSensor2HumedadValue] = useState(0);
     const [conectado, setConectado] = useState(false);
     const [bombaEncendida, setBombaEncendida] = useState(false);
-    const [riegoProgramado, setRiegoProgramado] = useState(null); // { minutos, hora (???) PENDIENTE}
+    const [riegoProgramado, setRiegoProgramado] = useState(null);
 
     useEffect(() => {
         const nuevaConexion = io(SERVER_URL);
@@ -28,7 +27,6 @@ export default function RiegoScreen({ navigation }) {
             if (data && data.encendida !== undefined) setBombaEncendida(data.encendida);
         });
 
-        // Aviso de riego programado por el admin
         nuevaConexion.on('riego_programado_data', (data) => {
             if (data && data.minutos !== undefined) setRiegoProgramado(data);
         });
@@ -56,7 +54,21 @@ export default function RiegoScreen({ navigation }) {
         ? `${riegoProgramado.minutos} minutos${riegoProgramado.hora ? ` a las ${riegoProgramado.hora}` : ''}`
         : 'No programado';
 
+    // Fórmula invertida: A menor valor crudo (más mojado), mayor porcentaje.
+    const calcularPorcentajeInvertido = (valorCrudo) => {
+        // Ajusta estos valores si es necesario según lo que marque tu sensor en seco (ej. 1023) y en agua pura (ej. 200 o 300)
+        const valorAireSeco = 1023;
+        const valorAguaTotal = 200; // Puedes cambiar este límite inferior si tu sensor no baja tanto
 
+        let porcentaje = ((valorAireSeco - valorCrudo) / (valorAireSeco - valorAguaTotal)) * 100;
+        
+        if (porcentaje > 100) porcentaje = 100;
+        if (porcentaje < 0) porcentaje = 0;
+        return Math.round(porcentaje);
+    };
+
+    const porc1 = calcularPorcentajeInvertido(sensorHumedadValue);
+    const porc2 = calcularPorcentajeInvertido(sensor2HumedadValue);
 
     return (
         <SafeAreaView style={styles.areaSegura}>
@@ -67,7 +79,6 @@ export default function RiegoScreen({ navigation }) {
             >
                 <View style={styles.apartadosTitulo}>
                     <Text style={styles.icono}>💧</Text>
-
                     <View style={styles.apartado2Titulo}>
                         <Text style={styles.titulo}>Riego</Text>
                         <Text style={styles.subtitle}>Controle el sistema de riego y la humedad de las plantas.</Text>
@@ -79,62 +90,68 @@ export default function RiegoScreen({ navigation }) {
                         <Text style={styles.SensoresTitulo}>Nivel de humedad</Text>
 
                         <View style={styles.sensoresRow}>
+                            {/* Sensor Fila 1 */}
                             <View style={styles.sensorBox}>
-                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={60} color="#274c77" />
-                                <Text style={styles.sensorValor}>{sensorHumedadValue}</Text>
+                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={50} color="#274c77" />
+                                <View style={styles.valorContainer}>
+                                    <Text style={[styles.sensorValor, porc1 <= 15 ? styles.textoRojo : styles.textoVerde]}>
+                                        {porc1}%
+                                    </Text>
+                                </View>
                                 <Text style={styles.sensorLabel}>Fila 1</Text>
                             </View>
+
+                            {/* Sensor Fila 2 */}
                             <View style={styles.sensorBox}>
-                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={60} color="#274c77" />
-                                <Text style={styles.sensorValor}>{sensor2HumedadValue}</Text>
+                                <MaterialCommunityIcons style={styles.iconoSensor} name="seed" size={50} color="#274c77" />
+                                <View style={styles.valorContainer}>
+                                    <Text style={[styles.sensorValor, porc2 <= 15 ? styles.textoRojo : styles.textoVerde]}>
+                                        {porc2}%
+                                    </Text>
+                                </View>
                                 <Text style={styles.sensorLabel}>Fila 2</Text>
                             </View>
                         </View>
                     </View>
                 </View>
 
-
-
                 <View style={styles.card}>
                     <Text style={styles.SensoresTitulo}>Sistema de Riego Automático</Text>
-                        <Text style={styles.descripcionInfo}>El sistema será activado en este horario:</Text>
-                        <View style={styles.apartadoProgramado}>
-                            <Text style={styles.iconoProgramado}>🕒</Text>
-                            <View style={styles.textoProgramado}>
-                                <Text style={styles.subtituloProgramado}>Tiempo</Text>
-                                <Text style={styles.valorTiempoProgramado}>{textoProgramado}</Text>
-                            </View>
+                    <Text style={styles.descripcionInfo}>El sistema será activado en este horario:</Text>
+                    <View style={styles.apartadoProgramado}>
+                        <Text style={styles.iconoProgramado}>🕒</Text>
+                        <View style={styles.textoProgramado}>
+                            <Text style={styles.subtituloProgramado}>Tiempo</Text>
+                            <Text style={styles.valorTiempoProgramado}>{textoProgramado}</Text>
                         </View>
-                        <Text style={styles.descripcionInfo}>En caso de que el administrador no haya establecido un horario, usted puede activar el sistema de manera manual en el apartado de abajo.</Text>
+                    </View>
+                    <Text style={styles.descripcionInfo}>En caso de que el administrador no haya establecido un horario, usted puede activar el sistema de manera manual en el apartado de abajo.</Text>
                 </View>
-
-
 
                 <View style={styles.card}>
                     <Text style={styles.SensoresTitulo}>Sistema de Riego Manual</Text>
+                    <Text style={styles.descripcionInfo}>Verifique el estado del sistema (encendido / apagado) y utilice los botones para controlarlo.</Text>
 
-                        <Text style={styles.descripcionInfo}>Verifique el estado del sistema (encendido / apagado) y utilice los botones para controlarlo.</Text>
+                    <Text style={[styles.estado, bombaEncendida ? styles.conectado : styles.desconectado]}>
+                        {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
+                    </Text>
+                    <View style={styles.botones}>
+                        <TouchableOpacity
+                            style={[styles.boton, styles.botonEncender]}
+                            onPress={encenderBomba}
+                            disabled={!conectado}
+                        >
+                            <Text style={styles.textoBoton}>ENCENDER</Text>
+                        </TouchableOpacity>
 
-                        <Text style={[styles.estado, bombaEncendida ? styles.conectado : styles.desconectado]}>
-                            {bombaEncendida ? 'ENCENDIDO' : 'APAGADO'}
-                        </Text>
-                        <View style={styles.botones}>
-                            <TouchableOpacity
-                                style={[styles.boton, styles.botonEncender]}
-                                onPress={encenderBomba}
-                                disabled={!conectado}
-                            >
-                                <Text style={styles.textoBoton}>ENCENDER</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.boton, styles.botonApagar]}
-                                onPress={apagarBomba}
-                                disabled={!conectado}
-                            >
-                                <Text style={styles.textoBoton}>APAGAR</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity
+                            style={[styles.boton, styles.botonApagar]}
+                            onPress={apagarBomba}
+                            disabled={!conectado}
+                        >
+                            <Text style={styles.textoBoton}>APAGAR</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -163,7 +180,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#c6cbe1',
-        marginTop:15,
+        marginTop: 15,
     },
     icono: {
         fontSize: 40,
@@ -196,18 +213,28 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#c6cbe1',
     },
-    sensorValor: {
-        fontSize: 50,
-        fontWeight: 'bold',
-        color: '#274c77'
-    },
     sensorBox: {
         backgroundColor: '#F3E9DC',
         borderRadius: 15,
-        paddingVertical: 20,
-        paddingHorizontal: 30,
+        paddingVertical: 15,
+        paddingHorizontal: 10,
         alignItems: 'center',
-        minWidth: 130,
+        width: '45%',
+    },
+    valorContainer: {
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sensorValor: {
+        fontSize: 40,
+        fontWeight: 'bold',
+    },
+    textoRojo: {
+        color: '#d90429', // Rojo si está seco (0 - 15%)
+    },
+    textoVerde: {
+        color: '#2b9348', // Verde si es mayor a 15%
     },
     SensoresTitulo: {
         fontSize: 23,
@@ -217,13 +244,12 @@ const styles = StyleSheet.create({
         color: '#274c77',
     },
     iconoSensor: {
-        marginBottom: 5,
-        marginLeft:10,
+        marginBottom: 2,
     },
     sensorLabel: {
-        fontSize: 30,
+        fontSize: 22,
         color: '#274c77',
-        marginTop: 8,
+        marginTop: 4,
     },
     sensoresSection: {
         marginVertical: 10
@@ -235,14 +261,14 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         marginBottom: 10,
         marginTop: 10,
-        fontWeight: '500',
-        width: '100%'
+        width: '70%',
+        marginLeft: '15%'
     },
     botonEncender: {
         backgroundColor: '#2e7d32'
     },
     botonApagar: {
-        backgroundColor: '#c62828'
+        backgroundColor: '#58391b'
     },
     descripcionInfo: {
         fontSize: 14,
@@ -257,8 +283,8 @@ const styles = StyleSheet.create({
         color: '#6A994E'
     },
     desconectado: {
-        backgroundColor: '#ffebee',
-        color: '#E5383B'
+        backgroundColor: '#F3E9DC',
+        color: '#58391b'
     },
     botones: {
         flexDirection: 'row',
@@ -279,8 +305,9 @@ const styles = StyleSheet.create({
     },
     sensoresRow: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginBottom: 10
+        justifyContent: 'space-between',
+        marginBottom: 10,
+        paddingHorizontal: 5,
     },
     apartadoProgramado: {
         flexDirection: 'row',

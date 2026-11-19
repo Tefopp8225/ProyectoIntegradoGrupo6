@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { View,Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity } from 'react-native';
 import io from 'socket.io-client';
 
-const SERVER_URL = 'http://192.168.1.26:3000';
+const SERVER_URL = 'http://192.168.0.4:3000';
 
 export default function HistorialScreenAdmin({ navigation }) {
 

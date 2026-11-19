@@ -11,7 +11,6 @@ import { firebaseConfig } from '../firebase/FirebaseConfig';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const db = getFirestore(app);
 
-
 const PRODUCTOS_BASE = [
     { id: '1', nombre: 'Tierra' },
     { id: '2', nombre: 'Abono' },
@@ -31,12 +30,8 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
     const [conectado, setConectado] = useState(false);
 
-
     const [sensorDistance, setSensorDistance] = useState(null);
-
-
     const [ladoA, setLadoA] = useState(false);
-
     const [ladoB, setLadoB] = useState(false);
 
     const [inventario, setInventario] = useState([]);
@@ -58,7 +53,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
             console.log('Desconectado del servidor');
         });
 
-
         nuevaConexion.on('plant_distance', (data) => {
 
             const distancia = parseFloat(data.value);
@@ -69,25 +63,21 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
             setSensorDistance(distancia);
 
-
             if (distancia <= 0 || distancia > 40) {
                 setLadoA(false);
                 setLadoB(false);
                 return;
             }
 
-
             if (distancia >= 7 && distancia <= 13) {
                 setLadoA(true);
                 setLadoB(false);
             }
 
-
             else if (distancia >= 27 && distancia <= 33) {
                 setLadoA(false);
                 setLadoB(true);
             }
-
 
             else {
                 setLadoA(false);
@@ -225,7 +215,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
                 const referenciaCompra = doc(db, "compras", compra.id);
                 const referenciaInventario = doc(db, "inventario", compra.productoId);
 
-
                 const documentoCompra = await transaction.get(referenciaCompra);
                 const documentoInventario = await transaction.get(referenciaInventario);
 
@@ -252,12 +241,9 @@ export default function CrecimientoScreenUsu({ navigation }) {
                     throw new Error("La cantidad actual del inventario no es válida.");
                 }
 
-
                 transaction.update(referenciaInventario, {
                     cantidad: cantidadActual + cantidadCompra
                 });
-
-
 
                 transaction.update(referenciaCompra, {
                     estado: "Recibido",
@@ -353,7 +339,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
     };
 
-
     const plantaLista = ladoA || ladoB;
 
     return (
@@ -421,7 +406,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
 
                     </View>
 
-
                     <View style={styles.contenedorLados}>
 
                         {/* LADO A */}
@@ -435,7 +419,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
                             <Text style={styles.nombreLado}>
                                 LADO A
                             </Text>
-
 
                             <View style={[
                                 styles.indicadorLado,
@@ -469,7 +452,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
                                 LADO B
                             </Text>
 
-
                             <View style={[
                                 styles.indicadorLado,
                                 ladoB ? styles.indicadorActivo : styles.indicadorInactivo
@@ -491,7 +473,6 @@ export default function CrecimientoScreenUsu({ navigation }) {
                         </View>
 
                     </View>
-
 
                 </View>
 
@@ -894,7 +875,6 @@ const styles = StyleSheet.create({
         color: '#8B6F47',
         marginTop: 4,
     },
-    
 
     pedidoItem: {
         backgroundColor: '#F8F4EF',

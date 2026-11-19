@@ -6,9 +6,6 @@ const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const cors = require('cors');
 
-
-
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -16,8 +13,8 @@ const io = new Server(server, { cors: { origin: '*' } });
 app.use(cors());
 
 // CONFIGURACIÓN DE PUERTOS COM
-const PUERTO_ARDUINO_RIEGO = 'COM4';      // Arduino 1: Riego, Humedad y Servo 1 (Pin 2)
-const PUERTO_ARDUINO_SISTEMA = 'COM5';    // Arduino 2: Crecimiento, Temperatura, Ventilador, Luces y Servo 2 (Pin 5)
+const PUERTO_ARDUINO_RIEGO = 'COM6';      // Arduino 1: Riego, Humedad y Techo (Servos en pines 2 y 5)
+const PUERTO_ARDUINO_SISTEMA = 'COM4';    // Arduino 2: Crecimiento, Temperatura, Ventilador, Luces y LDR
 
 let serialPortRiego, serialPortSistema;
 
@@ -26,14 +23,11 @@ let alturaValue = 0;
 let sensor1HumedadValue = 0;
 let sensor2HumedadValue = 0;
 let temperaturaValue = 0;
-let ldrValue = 0;
+let ldrValue = 100; // Valor por defecto
 
 let historial = [];
 
-
-
 function registrarRegistro(tipo, nombre, valor) {
-
     const registro = {
         id: Date.now(),
         tipo: tipo,
@@ -47,10 +41,9 @@ function registrarRegistro(tipo, nombre, valor) {
     io.emit('historial_update', registro);
 
     console.log('[HISTORIAL]', registro);
-
 }
 
-// CONEXIÓN ARDUINO 1 (COM4) - Riego, Sensores de Humedad y Servo 1
+// CONEXIÓN ARDUINO 1 (COM6) - Riego, Sensores de Humedad y Servos del Techo
 try {
     serialPortRiego = new SerialPort({ path: PUERTO_ARDUINO_RIEGO, baudRate: 9600 });
     const parserRiego = serialPortRiego.pipe(new ReadlineParser({ delimiter: '\n' }));
@@ -72,7 +65,7 @@ try {
     console.log('[ERROR] Arduino Riego:', error.message);
 }
 
-// CONEXIÓN ARDUINO 2 (COM5) - Crecimiento, Ambiente, Luces y Servo 2
+// CONEXIÓN ARDUINO 2 (COM4) - Crecimiento, Ambiente, Luces y LDR
 try {
     serialPortSistema = new SerialPort({ path: PUERTO_ARDUINO_SISTEMA, baudRate: 9600 });
     const parserSistema = serialPortSistema.pipe(new ReadlineParser({ delimiter: '\n' }));
@@ -85,6 +78,8 @@ try {
             alturaValue = parseFloat(line.split(':')[1]);
             if (Number.isFinite(alturaValue)) {
                 io.emit('sensor_data', { value: alturaValue });
+                io.emit('plant_distance', { value: alturaValue });
+                
                 registrarRegistro('Sensor', 'Sensor ultrasónico', alturaValue.toFixed(1) + ' cm');
             }
         } else if (line.startsWith('SENSOR_TEMPERATURA:')) {
@@ -92,6 +87,7 @@ try {
             io.emit('temperatura_data', { value: temperaturaValue });
         } else if (line.startsWith('LDR_VALOR:')) {
             ldrValue = parseFloat(line.split(':')[1]);
+            io.emit('ldr_data', { value: ldrValue });
         }
     });
     console.log('[OK] Conectado a Arduino del Sistema en:', PUERTO_ARDUINO_SISTEMA);
@@ -101,7 +97,6 @@ try {
 
 // MANEJO DE SOCKETS CON LA APLICACIÓN REACT NATIVE
 io.on('connection', (socket) => {
-
     console.log('[APP] App conectada:', socket.id);
 
     // Enviar estados iniciales al conectar la app
@@ -110,8 +105,9 @@ io.on('connection', (socket) => {
     socket.emit('sensor1_humedad_data', { value: sensor1HumedadValue });
     socket.emit('sensor2_humedad_data', { value: sensor2HumedadValue });
     socket.emit('temperatura_data', { value: temperaturaValue });
+    socket.emit('ldr_data', { value: ldrValue });
 
-    // CONTROL DE BOMBA DE AGUA (Envía comando a Arduino 1 - COM4)
+    // CONTROL DE BOMBA DE AGUA (Arduino 1 - COM6)
     socket.on('command_bomba', (data) => {
         console.log('[APP] Comando Bomba:', data);
         if (serialPortRiego && serialPortRiego.isOpen) {
@@ -125,7 +121,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // CONTROL DE VENTILADOR (Envía comando a Arduino 2 - COM5)
+    // CONTROL DE VENTILADOR (Arduino 2 - COM4)
     socket.on('command_ventilador', (data) => {
         console.log('[APP] Comando Ventilador:', data);
         if (serialPortSistema && serialPortSistema.isOpen) {
@@ -139,80 +135,83 @@ io.on('connection', (socket) => {
         }
     });
 
-    // CONTROL DE TECHO / VENTANA - Servos 360° (Envía comando a AMBOS Arduinos simultáneamente)
+    // CONTROL DE TECHO / VENTANA (Ahora dirigido al Arduino 1 - COM6 donde están físicamente los servos)
     socket.on('command_ventana', (data) => {
         console.log('[APP] Comando Ventana:', data);
         let cmd = (data.action === 'ABRIR') ? 'VENTANA_ABRIR\n' : 'VENTANA_CERRAR\n';
 
-        // Manda la orden al Arduino 2 (Sistema - Servo 2)
-        if (serialPortSistema && serialPortSistema.isOpen) {
-            serialPortSistema.write(cmd);
-        }
-        // Manda la orden al Arduino 1 (Riego - Servo 1 en Pin 2)
         if (serialPortRiego && serialPortRiego.isOpen) {
-            serialPortRiego.write(cmd);
+            serialPortRiego.write(cmd, (err) => {
+                if (!err) {
+                    io.emit('ventana_state', { abierta: data.action === 'ABRIR' });
+                    registrarRegistro('Actuador', 'Techo / Ventana', data.action === 'ABRIR' ? 'Abierto' : 'Cerrado');
+                }
+            });
         }
-
-        io.emit('ventana_state', { abierta: data.action === 'ABRIR' });
-        registrarRegistro('Actuador', 'Techo / Ventana (360°)', data.action === 'ABRIR' ? 'Abierto' : 'Cerrado');
     });
 
-    // CONTROL DE LEDS (Envía comando a Arduino 2 - COM5)
-    socket.on('command_led', (data) => {
-        console.log('[APP] Comando LED:', data);
+    // CONTROL DE LUZ INVERNADERO (Opcional por compatibilidad)
+    socket.on('command_ledinvernadero', (data) => {
+        console.log('[APP] Comando LED Invernadero:', data);
         if (serialPortSistema && serialPortSistema.isOpen) {
-            let comando = '';
-            let nombre = '';
-            if (data.led === 'sol') {
-                comando = data.action === 'ON' ? 'LEDSOL_ON\n' : 'LEDSOL_OFF\n';
-                nombre = 'LED Sol';
-            } else if (data.led === 1) {
-                comando = data.action === 'ON' ? 'LED1Calle_ON\n' : 'LED1Calle_OFF\n';
-                nombre = 'LED Calle 1';
-            } else if (data.led === 2) {
-                comando = data.action === 'ON' ? 'LED2Calle_ON\n' : 'LED2Calle_OFF\n';
-                nombre = 'LED Calle 2';
-            }
-
-            serialPortSistema.write(comando, (err) => {
+            let cmd = (data.action === 'ON') ? 'LEDSOL_ON\n' : 'LEDSOL_OFF\n';
+            serialPortSistema.write(cmd, (err) => {
                 if (!err) {
-                    registrarRegistro('Actuador', nombre, data.action === 'ON' ? 'Encendido' : 'Apagado');
+                    io.emit('ledinvernadero_state', { encendido: data.action === 'ON' });
+                    registrarRegistro('Actuador', 'Luz del Invernadero', data.action === 'ON' ? 'Encendido' : 'Apagado');
+                }
+            });
+        }
+    });
+
+    // CONTROL DE LUZ CALLE 1 (Arduino 2 - COM4)
+    socket.on('command_led1calle', (data) => {
+        console.log('[APP] Comando LED 1 Calle:', data);
+        if (serialPortSistema && serialPortSistema.isOpen) {
+            let cmd = (data.action === 'ON') ? 'LED1Calle_ON\n' : 'LED1Calle_OFF\n';
+            serialPortSistema.write(cmd, (err) => {
+                if (!err) {
+                    io.emit('led1calle_state', { encendido: data.action === 'ON' });
+                    registrarRegistro('Actuador', 'LED Calle 1', data.action === 'ON' ? 'Encendido' : 'Apagado');
+                }
+            });
+        }
+    });
+
+    // CONTROL DE LUZ CALLE 2 (Arduino 2 - COM4)
+    socket.on('command_led2calle', (data) => {
+        console.log('[APP] Comando LED 2 Calle:', data);
+        if (serialPortSistema && serialPortSistema.isOpen) {
+            let cmd = (data.action === 'ON') ? 'LED2Calle_ON\n' : 'LED2Calle_OFF\n';
+            serialPortSistema.write(cmd, (err) => {
+                if (!err) {
+                    io.emit('led2calle_state', { encendido: data.action === 'ON' });
+                    registrarRegistro('Actuador', 'LED Calle 2', data.action === 'ON' ? 'Encendido' : 'Apagado');
                 }
             });
         }
     });
 
     socket.on('disconnect', () => {
-
         console.log('[APP] App desconectada:', socket.id);
-
     });
-
 });
-
-
 
 const PORT = 3000;
 
 server.listen(PORT, '0.0.0.0', () => {
-
     console.log('========================================');
     console.log('SERVER MULTI-ARDUINO INICIADO');
     console.log('========================================');
     console.log('Puerto Servidor:', PORT);
-    console.log('Arduino 1 (Riego + Servo 1 en COM4):', PUERTO_ARDUINO_RIEGO);
-    console.log('Arduino 2 (Sistema + Servo 2 en COM5):', PUERTO_ARDUINO_SISTEMA);
+    console.log('Arduino 1 (Riego y Techo):', PUERTO_ARDUINO_RIEGO);
+    console.log('Arduino 2 (Sistema y Luces):', PUERTO_ARDUINO_SISTEMA);
     console.log('========================================');
-
-
 });
 
-
 process.on('SIGINT', () => {
-
     console.log('\n[STOP] Servidor detenido');
     if (serialPortRiego && serialPortRiego.isOpen) serialPortRiego.close();
     if (serialPortSistema && serialPortSistema.isOpen) serialPortSistema.close();
     process.exit();
-
 });

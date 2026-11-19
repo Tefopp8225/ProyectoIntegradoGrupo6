@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Button, Alert, TouchableOpacity, ScrollView } from 'react-native';
 import { initializeApp, getApps } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, updateDoc, deleteDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { firebaseConfig } from '../firebase/FirebaseConfig';
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
@@ -79,6 +79,47 @@ export default function HomeScreenAdmin() {
         }
     };
 
+    // FUNCIÓN PARA ELIMINAR UN USUARIO
+    const eliminarUsuario = (usuario) => {
+        const nombreMostrar = usuario.nombre && usuario.apellido 
+            ? `${usuario.nombre} ${usuario.apellido}` 
+            : usuario.email;
+
+        Alert.alert(
+            "Eliminar Trabajador",
+            `¿Estás seguro de que deseas eliminar a ${nombreMostrar}? Esta acción no se puede deshacer.`,
+            [
+                { text: "No", style: "cancel" },
+                { 
+                    text: "Sí, eliminar", 
+                    style: "destructive",
+                    onPress: async () => {
+                        setCargando(true);
+                        try {
+                            // Eliminamos el documento de Firestore
+                            await deleteDoc(doc(db, 'users', usuario.id));
+
+                            // Actualizamos el estado local quitando al usuario
+                            setUsuarios(prevUsuarios => prevUsuarios.filter(u => u.id !== usuario.id));
+
+                            // Si el usuario eliminado era el seleccionado, limpiamos la selección
+                            if (usuarioSeleccionado?.id === usuario.id) {
+                                setUsuarioSeleccionado(null);
+                            }
+
+                            Alert.alert("Eliminado", "El trabajador ha sido eliminado correctamente.");
+                        } catch (error) {
+                            console.error("Error al eliminar usuario:", error);
+                            Alert.alert("Error", "No se pudo eliminar al usuario.");
+                        } finally {
+                            setCargando(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     // RESTABLECER ASISTENCIA Y LIMPIAR FORMULARIOS
     const restablecerAsistencias = () => {
         Alert.alert(
@@ -94,7 +135,6 @@ export default function HomeScreenAdmin() {
                         try {
                             for (const user of usuarios) {
                                 const usuarioRef = doc(db, 'users', user.id);
-                                // Actualizamos estado a Ausente y limpiamos los campos de texto
                                 await updateDoc(usuarioRef, { 
                                     estado: 'Ausente',
                                     nombre: '',
@@ -102,7 +142,6 @@ export default function HomeScreenAdmin() {
                                     edad: ''
                                 });
                             }
-                            // Limpiamos los datos también en el estado local de la pantalla
                             setUsuarios(prevUsuarios => prevUsuarios.map(u => ({ 
                                 ...u, 
                                 estado: 'Ausente', 
@@ -184,10 +223,20 @@ export default function HomeScreenAdmin() {
                                 </View>
 
                                 <View style={styles.estadoBox}>
-                                    <Text style={[styles.estadoPillText, { color: estaPresente ? '#2e7d32' : '#c62828' }]}>
-                                        {item.estado || 'Ausente'}
-                                    </Text>
-                                    <View style={[styles.puntoEstado, { backgroundColor: estaPresente ? '#2e7d32' : '#c62828' }]} />
+                                    {/* Botón de eliminar (X pequeña arriba del estado) */}
+                                    <TouchableOpacity 
+                                        style={styles.btnEliminarPequeno} 
+                                        onPress={() => eliminarUsuario(item)}
+                                    >
+                                        <Text style={styles.textoEliminarX}>✕</Text>
+                                    </TouchableOpacity>
+
+                                    <View style={styles.estadoPillContainer}>
+                                        <Text style={[styles.estadoPillText, { color: estaPresente ? '#2e7d32' : '#c62828' }]}>
+                                            {item.estado || 'Ausente'}
+                                        </Text>
+                                        <View style={[styles.puntoEstado, { backgroundColor: estaPresente ? '#2e7d32' : '#c62828' }]} />
+                                    </View>
                                 </View>
                             </TouchableOpacity>
                         );
@@ -216,13 +265,11 @@ export default function HomeScreenAdmin() {
                 <Button
                     title={cargando ? "Guardando..." : "Confirmar Asistencia"}
                     color="#63331c"
-                    borderRadius= '25'
                     onPress={registrarAsistencia}
                     disabled={cargando}
                 />
             </View>
 
-            {/* BOTÓN DE RESTABLECER PEQUEÑO Y DISCRETO */}
             <TouchableOpacity 
                 style={styles.btnRestablecerPequeno} 
                 onPress={restablecerAsistencias}
@@ -336,15 +383,32 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         justifyContent: 'center',
     },
+    btnEliminarPequeno: {
+        width: 20,
+        height: 20,
+        borderRadius: 11,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    textoEliminarX: {
+        color: '#0f0f0f',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    estadoPillContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     estadoPillText: {
         fontSize: 11,
         fontWeight: 'bold',
-        marginBottom: 3,
+        marginRight: 4,
     },
     puntoEstado: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
     row: {
         flexDirection: 'row',

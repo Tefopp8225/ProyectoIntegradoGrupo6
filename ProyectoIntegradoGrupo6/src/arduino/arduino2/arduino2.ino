@@ -1,18 +1,11 @@
-#include <Servo.h>
-
 // Pines para Crecimiento (Sensor Ultrasónico)
 const int TRIG = 9;
 const int ECHO = 10;
-float distanciaInicial = 30.0;
-bool objetoDetectado = false;
+float distanciaMaxima = 40.0; 
 
 // Pines para Ambiente y Actuadores
 const int pinSensorTemperatura = A2;
 const int pinVentilador = 4;
-
-// Servo 2 del techo (Rotación continua de 360°)
-Servo techoServo2;
-const int pinServo2 = 5; // O el pin donde tengas el segundo servo
 
 // Luces
 const int pinLed1Calle = 7;
@@ -20,9 +13,16 @@ const int pinLed2Calle = 8;
 const int pinLedSol = 11; 
 const int pinLDR = A3;
 
+const int UMBRAL_LUZ = 15; 
+
+// Variables para la simulación gradual de temperatura
+float temperaturaSimulada = 25.0; // Inicia en 25.0°C
+const float TEMP_MAXIMA = 26.0;     // Temperatura ambiente normal (ventilador apagado)
+const float TEMP_MINIMA = 21.0;     // Temperatura mínima al enfriar (ventilador encendido)
+
 void setup() {
     Serial.begin(9600);
-    
+
     pinMode(TRIG, OUTPUT);
     pinMode(ECHO, INPUT);
     pinMode(pinSensorTemperatura, INPUT);
@@ -35,47 +35,54 @@ void setup() {
     digitalWrite(pinVentilador, LOW);
     digitalWrite(pinLed1Calle, LOW);
     digitalWrite(pinLed2Calle, LOW);
-    digitalWrite(pinLedSol, HIGH);
-
-    // Inicializar el Servo 2 detenido (90)
-    techoServo2.attach(pinServo2);
-    techoServo2.write(90); 
+    digitalWrite(pinLedSol, LOW);
 }
 
 void loop() {
-    // 1. Ultrasónico
-    long duracion;
-    float distancia, altura;
-
+    // 1. Ultrasónico de Crecimiento
     digitalWrite(TRIG, LOW);
-    delayMicroseconds(2);
+    delayMicroseconds(5);
     digitalWrite(TRIG, HIGH);
     delayMicroseconds(10);
     digitalWrite(TRIG, LOW);
 
-    duracion = pulseIn(ECHO, HIGH, 30000);
+    long duracion = pulseIn(ECHO, HIGH, 40000); 
     if (duracion > 0) {
-        distancia = (duracion * 0.0343) / 2;
-        if (distancia > 0 && distancia < distanciaInicial) {
-            altura = distanciaInicial - distancia;
-            if (altura > 0) {
-                Serial.print("ALTURA:");
-                Serial.println(altura, 1);
-            }
+        float distancia = (duracion * 0.0343) / 2;
+        if (distancia > 2 && distancia <= distanciaMaxima) {
+            Serial.print("ALTURA:");
+            Serial.println(distancia, 1);
         }
     }
 
-    // 2. Temperatura y LDR
-    int lecturaTemp = analogRead(pinSensorTemperatura);
-    float voltaje = lecturaTemp * (5.0 / 1023.0);
-    float temperaturaC = (voltaje - 0.5) * 100.0;
-    int valorLDR = analogRead(pinLDR);
+    // 2. Descenso o ascenso gradual de la temperatura según el ventilador
+    if (digitalRead(pinVentilador) == HIGH) {
+        // Si está encendido, baja de a 0.5 grados hasta llegar a 22.0°C
+        if (temperaturaSimulada > TEMP_MINIMA) {
+            temperaturaSimulada -= 0.5;
+        }
+    } else {
+        // Si está apagado, sube de a 0.5 grados de regreso hasta los 25.0°C
+        if (temperaturaSimulada < TEMP_MAXIMA) {
+            temperaturaSimulada += 0.5;
+        }
+    }
 
+    // LDR y Luz Automática
+    int valorLDR = analogRead(pinLDR);
+    bool esDeNoche = (valorLDR < UMBRAL_LUZ); 
+    if (esDeNoche) {
+        digitalWrite(pinLedSol, HIGH);
+    } else {
+        digitalWrite(pinLedSol, LOW);
+    }
+
+    // Enviar datos al servidor cada 2 segundos
     static unsigned long lastSend = 0;
     if (millis() - lastSend > 2000) {
         lastSend = millis();
         Serial.print("SENSOR_TEMPERATURA:");
-        Serial.println(temperaturaC, 1);
+        Serial.println(temperaturaSimulada, 1); // Envía con 1 decimal (ej. 24.5)
         Serial.print("LDR_VALOR:");
         Serial.println(valorLDR);
     }
@@ -85,18 +92,6 @@ void loop() {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        if (command == "VENTANA_ABRIR") {
-            techoServo2.write(0);   // Gira para abrir
-            delay(1500);            // Mismo tiempo que el Arduino 1
-            techoServo2.write(90);  // Se detiene
-            Serial.println("TECHO2_ABIERTO");
-        } else if (command == "VENTANA_CERRAR") {
-            techoServo2.write(180); // Gira para cerrar
-            delay(1500);            // Mismo tiempo de movimiento
-            techoServo2.write(90);  // Se detiene
-            Serial.println("TECHO2_CERRADO");
-        }
-
         if (command == "VENTILADOR_ON") {
             digitalWrite(pinVentilador, HIGH);
             Serial.println("VENTILADOR_ENCENDIDO");
@@ -104,22 +99,21 @@ void loop() {
             digitalWrite(pinVentilador, LOW);
             Serial.println("VENTILADOR_APAGADO");
         }
-        else if (command == "LEDSOL_ON") {
-            digitalWrite(pinLedSol, HIGH);
-        } else if (command == "LEDSOL_OFF") {
-            digitalWrite(pinLedSol, LOW);
-        }
         else if (command == "LED1Calle_ON") {
             digitalWrite(pinLed1Calle, HIGH);
+            Serial.println("LED1Calle_ENCENDIDO");
         } else if (command == "LED1Calle_OFF") {
             digitalWrite(pinLed1Calle, LOW);
+            Serial.println("LED1Calle_APAGADA");
         }
         else if (command == "LED2Calle_ON") {
             digitalWrite(pinLed2Calle, HIGH);
+            Serial.println("LED2Calle_ENCENDIDO");
         } else if (command == "LED2Calle_OFF") {
             digitalWrite(pinLed2Calle, LOW);
+            Serial.println("LED2Calle_APAGADA");
         }
     }
 
-    delay(100);
+    delay(300);
 }
