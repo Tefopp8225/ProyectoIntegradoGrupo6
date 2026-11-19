@@ -74,7 +74,7 @@ export default function CrecimientoScreenUsu({ navigation }) {
                 setLadoB(false);
             }
 
-            else if (distancia >= 27 && distancia <= 33) {
+            else if (distancia >= 19 && distancia <= 22) {
                 setLadoA(false);
                 setLadoB(true);
             }

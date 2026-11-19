@@ -60,7 +60,7 @@ export default function AmbienteScreen({ navigation }) {
     };
 
     const lucesJardinEncendidas = led1CalleEncendido && led2CalleEncendido;
-    const esDeNoche = ldrValue < 25;
+    const esDeNoche = ldrValue < 10;
 
     // --- CONDICIONALES DE TEMPERATURA ---
     const TEMPERATURA_ALTA = sensorTemValue > 27;  
